@@ -110,6 +110,15 @@ class P4VideoJSON(Phase):
         )
 
         video = _parse_video_json(resp.parsed_json, resp.text)
+        # The duration formula max(5, len(tts)/3.2 + 2) is deterministic, but LLMs
+        # routinely miscompute it. Trust the rule, not the model: rewrite duration
+        # for every scene that has tts so per_scene_duration / total_duration gates
+        # measure something meaningful (the LLM's *content* shape) instead of its
+        # arithmetic.
+        for scene in video.scenes:
+            tts = scene.get("tts_text") or ""
+            if tts:
+                scene["duration_seconds"] = round(expected_duration(tts), 1)
         return video.model_dump(mode="json")
 
     async def qa(self, output: dict, ctx: TaskContext) -> QAResult:
