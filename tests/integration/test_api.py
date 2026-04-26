@@ -32,8 +32,8 @@ async def test_health(client):
 
 
 @pytest.mark.asyncio
-async def test_create_task_runs_through_p2_5_then_pauses(client):
-    """P1 + P1.5 + P2 + P2.5 all implemented; pauses at P2.6 (stub)."""
+async def test_create_task_runs_through_p2_6_then_pauses(client):
+    """P1 + P1.5 + P2 + P2.5 + P2.6 all implemented; pauses at P3 (stub)."""
     pack = (FIXTURES / "scout-pack-example.md").read_text(encoding="utf-8")
     r = await client.post(
         "/tasks",
@@ -46,13 +46,14 @@ async def test_create_task_runs_through_p2_5_then_pauses(client):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["task"]["status"] == "paused_for_human"
-    assert body["task"]["current_phase"] == "P2.6"
+    assert body["task"]["current_phase"] == "P3"
     by_phase = {r["phase_id"]: r for r in body["runs"]}
     assert by_phase["P1"]["status"] == "passed"
     assert by_phase["P1.5"]["status"] == "passed"
     assert by_phase["P2"]["status"] == "passed"
     assert by_phase["P2.5"]["status"] == "passed"
-    assert by_phase["P2.6"]["status"] == "error"
+    assert by_phase["P2.6"]["status"] == "passed"
+    assert by_phase["P3"]["status"] == "error"
 
 
 @pytest.mark.asyncio

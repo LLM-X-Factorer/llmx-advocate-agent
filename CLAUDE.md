@@ -94,13 +94,14 @@
 - ✅ 完成：**P1.5** Topic Angle Discovery（LLM 生成 + community signal + 反产品发布通报 judge）
 - ✅ 完成：**P2** Content Layer Profile（LLM 分类 + 4 项规则 gate：tier-duration / tier-scene / formats / scores）
 - ✅ 完成：**P2.5** ⭐ Core Judgment（4 项强制 QA + 可选第 5 项 cognition_gap）
-- ❌ 未开始：P2.6 / P3 / P4 / P5 / P6
+- ✅ 完成：**P2.6** Cognitive Deepening（三轮追问 + 4 项 Depth Test + theme 字段）
+- ❌ 未开始：P3 / P4 / P5 / P6
 - ❌ 未开始：Celery worker 真接入（M2.3）—— 当前 API 同步跑
 - ❌ 未开始：评测脚手架（task fork / eval compare）
 
-**测试覆盖**：85 项（unit 72 + integration 13），全过。Lint 干净。
+**测试覆盖**：98 项（unit 85 + integration 13），全过。Lint 干净。
 
-**下一步**：P2.6 — Cognitive Deepening（三层深度思考：信息→思考→洞察）。
+**下一步**：P3 — Core Information Extraction（核心发现 / 关键数据 / 故事 / advocate 解读 + 5 维素材丰富度门）。
 
 ---
 
@@ -245,6 +246,23 @@
   - **未解决**：免费层日限额已被多次 smoke 累计撞穿；一段时间后才能再 smoke。Unit + integration 已 100% 覆盖业务逻辑正确性
 - 决定：当 PhaseRun 因 exception 失败时，把错误信息和 traceback 存入 `output._error / output._traceback`，方便事后追溯（V0.2 应该改为正式的 PhaseRun.error_message 字段）
 - 测试覆盖：85 项（unit 72 + integration 13），全过
+
+### 2026-04-27 — P2.6 业务接通（Cognitive Deepening）
+
+- 完成：DeepThinking model 加 `theme: str` 字段（P2.6 给后续 phase 的唯一交付物）
+- 完成：`prompts/p2_6_deepening/extract.md` — 三轮追问（WHY / MEANING / Validation）+ theme 输出 + 4 项 Depth Test 自检 + 反面示例
+- 完成：`prompts/p2_6_deepening/judges.md` — 4 项 Depth Test 裁判模板
+- 完成：`P2_6Deepening.run()` — 调生成 LLM (temperature=0.6)
+- 完成：`P2_6Deepening.qa()` — **6 个 gate**：
+  - `P2.6_theme_brevity`（rule，≤50 汉字）
+  - `P2.6_beyond_surface_rule`（rule，黑名单形容词扫描："很厉害/很重要/改变世界/是未来"等）
+  - `P2.6_beyond_surface_judge`（judge，结构性洞察 vs 形容词式）
+  - `P2.6_makes_rethink`（judge，能否挑战默认假设）
+  - `P2.6_transferable`（judge，能否套用到至少 2 个其他场景，rationale 必须举例）
+  - `P2.6_hook_independent`（judge，去掉热点钩子后 theme 仍成立）
+- 完成：fallback 链 — P2.6 重试耗尽 → 回 P2.5（种子判断本身可能太浅）
+- 完成：13 项 P2.6 单测 + 集成测试更新（mock 加 deepening_response，期望卡 P3 stub）
+- 测试覆盖：98 项（unit 85 + integration 13），全过
 
 ---
 

@@ -71,6 +71,16 @@ def mock_llm(monkeypatch):
             "override_reason": None,
         },
     )
+    deepening_response = LLMResponse(
+        text="",
+        usage=TokenUsage(input_tokens=300, output_tokens=200),
+        parsed_json={
+            "why_round": ["为什么1：单次召回受限", "为什么2：agent 拆成多步"],
+            "meaning_round": ["对开发：放弃一次到位执念", "对评测：静态 benchmark 失真"],
+            "validation_notes": "三轮追问后判断仍成立",
+            "theme": "检索范式从静态召回转向迭代探索",
+        },
+    )
     judge_response = LLMResponse(
         text='{"passed": true, "rationale": "ok"}',
         usage=TokenUsage(input_tokens=80, output_tokens=20),
@@ -83,6 +93,8 @@ def mock_llm(monkeypatch):
     layer_provider.complete = AsyncMock(return_value=layer_response)
     judgment_provider = AsyncMock()
     judgment_provider.complete = AsyncMock(return_value=judgment_response)
+    deepening_provider = AsyncMock()
+    deepening_provider.complete = AsyncMock(return_value=deepening_response)
     judge_provider = AsyncMock()
     judge_provider.complete = AsyncMock(return_value=judge_response)
 
@@ -97,6 +109,10 @@ def mock_llm(monkeypatch):
     monkeypatch.setattr(
         "llmx_advocate.core.phases.p2_5_judgment.get_provider",
         lambda _: judgment_provider,
+    )
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p2_6_deepening.get_provider",
+        lambda _: deepening_provider,
     )
     monkeypatch.setattr(
         "llmx_advocate.core.qa.judges.get_judge_provider",

@@ -208,9 +208,18 @@ class Judgment(BaseModel):
 
 
 class DeepThinking(BaseModel):
+    """Output of P2.6 — three-layer deep thinking + the validated theme.
+
+    `theme` is the one-sentence statement P2.6 finalises after the why/meaning
+    rounds. It must be at least as deep as the P2.5 judgment (often the same
+    sentence, sometimes refined). Downstream phases (P3+) consume `theme` as
+    the unifying claim of the video.
+    """
+
     why_round: list[str]
     meaning_round: list[str]
     validation_notes: str
+    theme: str
 
 
 class Finding(BaseModel):
