@@ -81,6 +81,23 @@ def mock_llm(monkeypatch):
             "theme": "检索范式从静态召回转向迭代探索",
         },
     )
+    extract_response = LLMResponse(
+        text="",
+        usage=TokenUsage(input_tokens=500, output_tokens=400),
+        parsed_json={
+            "findings": [
+                {"description": "发现1", "key_data": "55%", "source": "原文"},
+                {"description": "发现2", "key_data": "1.3 月", "source": "原文"},
+                {"description": "发现3", "key_data": "920x", "source": "原文"},
+            ],
+            "key_data_points": ["460 万美元 — 模拟环境总价值"],
+            "stories": [{"title": "四天时间差", "summary": "AI 早于人类黑客四天"}],
+            "quotable_lines": ["从复现到发现"],
+            "authority_anchors": ["Anthropic 红队报告"],
+            "pain_points": ["工程师不理解 agent 安全边界"],
+            "advocate_interpretation": "三个信号 + 三点建议",
+        },
+    )
     judge_response = LLMResponse(
         text='{"passed": true, "rationale": "ok"}',
         usage=TokenUsage(input_tokens=80, output_tokens=20),
@@ -95,6 +112,8 @@ def mock_llm(monkeypatch):
     judgment_provider.complete = AsyncMock(return_value=judgment_response)
     deepening_provider = AsyncMock()
     deepening_provider.complete = AsyncMock(return_value=deepening_response)
+    extract_provider = AsyncMock()
+    extract_provider.complete = AsyncMock(return_value=extract_response)
     judge_provider = AsyncMock()
     judge_provider.complete = AsyncMock(return_value=judge_response)
 
@@ -113,6 +132,10 @@ def mock_llm(monkeypatch):
     monkeypatch.setattr(
         "llmx_advocate.core.phases.p2_6_deepening.get_provider",
         lambda _: deepening_provider,
+    )
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p3_extract.get_provider",
+        lambda _: extract_provider,
     )
     monkeypatch.setattr(
         "llmx_advocate.core.qa.judges.get_judge_provider",

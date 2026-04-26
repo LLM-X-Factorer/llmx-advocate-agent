@@ -95,13 +95,14 @@
 - ✅ 完成：**P2** Content Layer Profile（LLM 分类 + 4 项规则 gate：tier-duration / tier-scene / formats / scores）
 - ✅ 完成：**P2.5** ⭐ Core Judgment（4 项强制 QA + 可选第 5 项 cognition_gap）
 - ✅ 完成：**P2.6** Cognitive Deepening（三轮追问 + 4 项 Depth Test + theme 字段）
-- ❌ 未开始：P3 / P4 / P5 / P6
+- ✅ 完成：**P3** Core Information Extraction（5 维素材丰富度 + findings 数量约束 + 选题受众面）
+- ❌ 未开始：P4 / P5 / P6
 - ❌ 未开始：Celery worker 真接入（M2.3）—— 当前 API 同步跑
 - ❌ 未开始：评测脚手架（task fork / eval compare）
 
-**测试覆盖**：98 项（unit 85 + integration 13），全过。Lint 干净。
+**测试覆盖**：113 项（unit 100 + integration 13），全过。Lint 干净。
 
-**下一步**：P3 — Core Information Extraction（核心发现 / 关键数据 / 故事 / advocate 解读 + 5 维素材丰富度门）。
+**下一步**：P4 — Video JSON Generation（开头自检按 opening_style 分叉 / TTS-Visual 同步规则 / 6 条共同红线）。
 
 ---
 
@@ -263,6 +264,22 @@
 - 完成：fallback 链 — P2.6 重试耗尽 → 回 P2.5（种子判断本身可能太浅）
 - 完成：13 项 P2.6 单测 + 集成测试更新（mock 加 deepening_response，期望卡 P3 stub）
 - 测试覆盖：98 项（unit 85 + integration 13），全过
+
+### 2026-04-27 — P3 业务接通（Core Information Extraction + 5 维素材丰富度门）
+
+- 完成：CoreInfo model 扩展 — 加 `quotable_lines / authority_anchors / pain_points` 三个字段（对应 dbs-hook 5 维中的金句 / 权威 / 痛点维度，前两维是 key_data + stories）
+- 完成：`prompts/p3_extract/extract.md` — 5 维分类提示 + findings 3-5 条约束 + 中文输出
+- 完成：`prompts/p3_extract/judges.md` — `P3_topic_breadth` 受众面裁判
+- 完成：`P3Extract.run()` — 调生成 LLM (temperature=0.5)，max_tokens=1500（输出量大）
+- 完成：`P3Extract.qa()` — **4 个 gate**：
+  - `P3_findings_count_in_range`（rule，3-5 条）
+  - `P3_findings_have_data`（rule，每条 finding 必有 key_data 或 source）
+  - **`P3_material_richness`** ⭐（rule，5 维至少 3 维非空——dbs-hook 补强 spec §5.6）
+  - `P3_topic_breadth`（judge，tier=转化时跳过——付费内容受众本就该窄）
+- 完成：fallback = None — P3 失败说明上游 phase 输出对接不上，不能简单回退；任务直接 fail（V0.1 决定）
+- 完成：15 项 P3 单测 + 集成测试更新（mock 加 extract_response，期望卡 P4 stub）
+- 决定：tier=转化时跳过 topic_breadth gate — 转化层本来就服务窄受众群体，宽广度反而是反向信号
+- 测试覆盖：113 项（unit 100 + integration 13），全过
 
 ---
 

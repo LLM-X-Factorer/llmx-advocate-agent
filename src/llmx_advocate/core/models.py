@@ -234,9 +234,19 @@ class Story(BaseModel):
 
 
 class CoreInfo(BaseModel):
+    """P3 output — extracted material organised by the 5 richness dimensions.
+
+    The dbs-hook material check (spec §5.6) requires at least 3 of 5 dimensions
+    to be non-empty: data / story / quote / authority / pain. Dimensions other
+    than findings default to empty so the gate logic can count actual coverage.
+    """
+
     findings: list[Finding] = Field(min_length=3, max_length=5)
-    key_data_points: list[str]
-    stories: list[Story]
+    key_data_points: list[str] = Field(default_factory=list)
+    stories: list[Story] = Field(default_factory=list)
+    quotable_lines: list[str] = Field(default_factory=list)
+    authority_anchors: list[str] = Field(default_factory=list)
+    pain_points: list[str] = Field(default_factory=list)
     advocate_interpretation: str
 
 

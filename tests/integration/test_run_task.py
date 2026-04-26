@@ -16,8 +16,8 @@ def engine() -> PhaseEngine:
 
 
 @pytest.mark.asyncio
-async def test_run_task_progresses_through_p2_6_then_pauses_at_stub(db_session, engine):
-    """P1 + P1.5 + P2 + P2.5 + P2.6 all implemented; P3 still a stub. Pauses at P3."""
+async def test_run_task_progresses_through_p3_then_pauses_at_stub(db_session, engine):
+    """P1..P3 all implemented; P4 still a stub. Pauses at P4."""
     task = await repo.create_task(
         db_session,
         title="test scout pack",
@@ -28,16 +28,13 @@ async def test_run_task_progresses_through_p2_6_then_pauses_at_stub(db_session, 
     outcome = await run_task_until_blocked(db_session, engine, task.id)
 
     assert outcome.final_status == TaskStatus.PAUSED_FOR_HUMAN
-    assert outcome.final_phase == PhaseId.P3
+    assert outcome.final_phase == PhaseId.P4
 
     runs = await repo.list_phase_runs(db_session, task.id)
     by_phase = {r.phase_id: r for r in runs}
-    assert by_phase[PhaseId.P1].status.value == "passed"
-    assert by_phase[PhaseId.P1_5].status.value == "passed"
-    assert by_phase[PhaseId.P2].status.value == "passed"
-    assert by_phase[PhaseId.P2_5].status.value == "passed"
-    assert by_phase[PhaseId.P2_6].status.value == "passed"
-    assert by_phase[PhaseId.P3].status.value == "error"
+    for pid in (PhaseId.P1, PhaseId.P1_5, PhaseId.P2, PhaseId.P2_5, PhaseId.P2_6, PhaseId.P3):
+        assert by_phase[pid].status.value == "passed", f"{pid} should pass"
+    assert by_phase[PhaseId.P4].status.value == "error"
 
 
 @pytest.mark.asyncio
