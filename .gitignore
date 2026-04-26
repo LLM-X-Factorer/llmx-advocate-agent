@@ -1,0 +1,64 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Virtual envs
+.venv/
+venv/
+env/
+.python-version
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.cache
+coverage.xml
+*.cover
+
+# Type checking
+.mypy_cache/
+.ruff_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Project local
+.env
+.env.local
+*.local
+data/
+logs/
+*.log
+
+# Skill source extracted (kept the .skill zip, not the unpack)
+docs/source-skill/extracted/
+
+# Alembic local
+alembic/versions/__pycache__/
+
+# Postgres / MinIO local volumes
+.docker-data/
+postgres-data/
+minio-data/
+redis-data/
+
+# Tasks workspace (local task outputs / blobs cached by CLI)
+.tasks/
