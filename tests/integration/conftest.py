@@ -98,6 +98,68 @@ def mock_llm(monkeypatch):
             "advocate_interpretation": "三个信号 + 三点建议",
         },
     )
+
+    # Build a video JSON that satisfies P4 gates against the mock LayerProfile
+    # (tier=留存, target_duration=600s, target_scene_count=24).
+    def _video_scenes() -> list[dict]:
+        from llmx_advocate.core.qa.rules import expected_duration
+        long_tts = (
+            "这一段我们讲核心发现。数据支撑这个观点的具体含义是什么？"
+            "我们从三个角度来看：第一个是数据本身的规模；第二个是其反映的趋势；"
+            "第三个是它对从业者的现实启示。每一点都值得展开来讲。"
+        )
+        scenes = [
+            {"scene_type": "cover", "title": "封面", "duration_seconds": 3},
+            {
+                "scene_type": "hook",
+                "main_text": "很多人觉得 RAG 已经死了，但其实检索范式从静态到动态。",
+                "tts_text": "很多人觉得 RAG 已经死了，但其实检索范式从静态到动态，从一次性召回转向迭代探索。这一点值得深入。",
+                "duration_seconds": round(expected_duration("很多人觉得 RAG 已经死了，但其实检索范式从静态到动态，从一次性召回转向迭代探索。这一点值得深入。"), 1),
+            },
+            {
+                "scene_type": "channel_intro",
+                "main_text": "LLM-X-Factors",
+                "tts_text": "大家好，这里是LLM-X-Factors，一个专注于拆解大语言模型时代底层逻辑的频道。",
+                "duration_seconds": round(expected_duration("大家好，这里是LLM-X-Factors，一个专注于拆解大语言模型时代底层逻辑的频道。"), 1),
+            },
+            {
+                "scene_type": "hook_support",
+                "title": "数据支撑",
+                "tts_text": "我们来看一下数据。某项基准 55%，另外能力 1.3 月翻倍，规模化扫描成本降到 1.22 美元。这些数字告诉我们一件事：从复现到发现。",
+                "duration_seconds": round(expected_duration("我们来看一下数据。某项基准 55%，另外能力 1.3 月翻倍，规模化扫描成本降到 1.22 美元。这些数字告诉我们一件事：从复现到发现。"), 1),
+            },
+        ]
+        for i in range(19):
+            if i % 5 == 0:
+                tts = "我们继续看下一段。"
+                scenes.append({
+                    "scene_type": "chapter_transition",
+                    "chapter_number": f"{i // 5 + 1:02d}",
+                    "chapter_title": f"第 {i // 5 + 1} 章",
+                    "tts_text": tts,
+                    "duration_seconds": round(expected_duration(tts), 1),
+                })
+            else:
+                scenes.append({
+                    "scene_type": "content",
+                    "title": f"第 {i} 点",
+                    "bullets": ["要点1", "要点2"],
+                    "tts_text": long_tts,
+                    "duration_seconds": round(expected_duration(long_tts), 1),
+                })
+        scenes.append({
+            "scene_type": "outro",
+            "headline": "我们下期见",
+            "tts_text": "这里是LLM-X-Factors，我们下期见。",
+            "duration_seconds": round(expected_duration("这里是LLM-X-Factors，我们下期见。"), 1),
+        })
+        return scenes
+
+    video_response = LLMResponse(
+        text="",
+        usage=TokenUsage(input_tokens=2000, output_tokens=2500),
+        parsed_json={"export_formats": ["landscape"], "scenes": _video_scenes()},
+    )
     judge_response = LLMResponse(
         text='{"passed": true, "rationale": "ok"}',
         usage=TokenUsage(input_tokens=80, output_tokens=20),
@@ -114,6 +176,8 @@ def mock_llm(monkeypatch):
     deepening_provider.complete = AsyncMock(return_value=deepening_response)
     extract_provider = AsyncMock()
     extract_provider.complete = AsyncMock(return_value=extract_response)
+    video_provider = AsyncMock()
+    video_provider.complete = AsyncMock(return_value=video_response)
     judge_provider = AsyncMock()
     judge_provider.complete = AsyncMock(return_value=judge_response)
 
@@ -136,6 +200,10 @@ def mock_llm(monkeypatch):
     monkeypatch.setattr(
         "llmx_advocate.core.phases.p3_extract.get_provider",
         lambda _: extract_provider,
+    )
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p4_video_json.get_provider",
+        lambda _: video_provider,
     )
     monkeypatch.setattr(
         "llmx_advocate.core.qa.judges.get_judge_provider",

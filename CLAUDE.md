@@ -96,13 +96,14 @@
 - ✅ 完成：**P2.5** ⭐ Core Judgment（4 项强制 QA + 可选第 5 项 cognition_gap）
 - ✅ 完成：**P2.6** Cognitive Deepening（三轮追问 + 4 项 Depth Test + theme 字段）
 - ✅ 完成：**P3** Core Information Extraction（5 维素材丰富度 + findings 数量约束 + 选题受众面）
-- ❌ 未开始：P4 / P5 / P6
+- ✅ 完成：**P4** Video JSON Generation（共同 6 红线 + judgment_first 3 项 + 结构校验；suspense_first 5 项 judge gate 待 V0.2）
+- ❌ 未开始：P5 / P6
 - ❌ 未开始：Celery worker 真接入（M2.3）—— 当前 API 同步跑
 - ❌ 未开始：评测脚手架（task fork / eval compare）
 
-**测试覆盖**：113 项（unit 100 + integration 13），全过。Lint 干净。
+**测试覆盖**：133 项（unit 120 + integration 13），全过。Lint 干净。
 
-**下一步**：P4 — Video JSON Generation（开头自检按 opening_style 分叉 / TTS-Visual 同步规则 / 6 条共同红线）。
+**下一步**：P5 — JSON Self-Check（schema 校验 + 6 条 TTS-Visual 同步 + anti-AI 味检测）。
 
 ---
 
@@ -280,6 +281,23 @@
 - 完成：15 项 P3 单测 + 集成测试更新（mock 加 extract_response，期望卡 P4 stub）
 - 决定：tier=转化时跳过 topic_breadth gate — 转化层本来就服务窄受众群体，宽广度反而是反向信号
 - 测试覆盖：113 项（unit 100 + integration 13），全过
+
+### 2026-04-27 — P4 业务接通（Video JSON Generation）— 第 1 步
+
+- 完成：`prompts/p4_video_json/extract.md` — 完整 video JSON 生成 prompt，含 opening_style Jinja 分支（judgment_first / suspense_first）；强制中文 tts；锁定频道介绍/结尾固定语；列出严禁与必须做到
+- 完成：`prompts/p4_video_json/judges.md` — 3 项共同红线 judge：first_sentence_complete / judgment_exists / oral_friendly
+- 完成：`P4VideoJSON.run()` — temperature=0.6 + max_tokens=6000（输出量大）
+- 完成：`P4VideoJSON.qa()` — **12 个 gate**（共同红线 6 + 结构 4 + judgment_first 2）：
+  - 共同红线（rule）：`P4_no_source_backing` / `P4_no_relay_phrases` / `P4_no_pan_kol_opening`
+  - 共同红线（judge）：`P4_first_sentence_complete` / `P4_judgment_exists` / `P4_oral_friendly`
+  - 结构（rule）：`P4_scene_count` / `P4_total_duration` / `P4_per_scene_duration` / `P4_opening_structure`
+  - judgment_first（rule）：`P4_jf_judgment_within_15s`（前 50 字 char-overlap 校验判断本质）/ `P4_jf_judgment_before_intro`
+- 完成：`_resolve_opening_style` — `auto` 时按 tier 决定（引流→suspense_first，其他→judgment_first）
+- 完成：20 项 P4 单测 + 集成测试更新（mock 加 video_response，期望卡 P5 stub）
+- 推迟到 V0.2：suspense_first 风格的 5 项 judge gate（`P4_sf_topic_established` / `P4_sf_hook_strength` / `P4_sf_credibility_signal` / `P4_sf_no_answer_leak` / `P4_sf_judgment_landing`）—— 需要更精细的时间窗口 LLM 判断
+- 决定：`P4_jf_judgment_within_15s` 用 char-overlap ≥40% 作启发式（直接 substring 太脆，judge LLM 太贵）；rationale 记录 overlap_ratio
+- 决定：duration 容差 ±3s/scene，总时长 ±30%；scene 数 ±3。这些容差可在 V0.2 调
+- 测试覆盖：133 项（unit 120 + integration 13），全过
 
 ---
 
