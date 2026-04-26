@@ -184,12 +184,31 @@ async def latest_passed_run(session: AsyncSession, task_id: str, phase_id: Phase
 
 
 async def attempt_count(session: AsyncSession, task_id: str, phase_id: PhaseId) -> int:
-    stmt = select(PhaseRunRow).where(
-        PhaseRunRow.task_id == task_id,
-        PhaseRunRow.phase_id == str(phase_id),
+    """Count attempts of this phase since the most recent fallback into it.
+
+    A "fallback into" event is when an *earlier* phase ran later than the most
+    recent terminal of this phase — meaning the engine reset the cycle. Without
+    this scoping, retries that follow a fallback would already exceed
+    qa_max_retries on attempt 1 and the engine would loop forever.
+    """
+    stmt = (
+        select(PhaseRunRow)
+        .where(PhaseRunRow.task_id == task_id)
+        .order_by(PhaseRunRow.started_at.asc())
     )
     result = await session.execute(stmt)
-    return len(result.scalars().all())
+    runs = list(result.scalars().all())
+
+    # Find the most recent terminal of this exact phase. Any runs of this phase
+    # *before* that terminal belong to the previous cycle and don't count.
+    target = str(phase_id)
+    last_terminal_idx: int | None = None
+    for i, r in enumerate(runs):
+        if r.phase_id == target and r.status == str(PhaseRunStatus.QA_FAILED_TERMINAL):
+            last_terminal_idx = i
+
+    start_idx = last_terminal_idx + 1 if last_terminal_idx is not None else 0
+    return sum(1 for r in runs[start_idx:] if r.phase_id == target)
 
 
 # === HumanEdit ===

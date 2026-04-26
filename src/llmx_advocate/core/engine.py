@@ -115,6 +115,12 @@ class RunOutcome:
     last_error: str | None = None
 
 
+# Global safety cap: if a task accumulates more than this many phase runs,
+# fail it. Otherwise QA-failure-then-fallback loops can spin forever (e.g.
+# P2.5 → fallback to P1.5 → P2.5 again with attempt > max_retries).
+MAX_TOTAL_PHASE_RUNS = 60
+
+
 async def run_task_until_blocked(
     session: AsyncSession,
     engine: PhaseEngine,
@@ -127,6 +133,7 @@ async def run_task_until_blocked(
       - phase QA failed terminally → fallback target queued, then loop continues
       - phase business not implemented (NotImplementedError) → status=PAUSED_FOR_HUMAN
       - generation/runtime error → status=FAILED
+      - total phase runs exceeds MAX_TOTAL_PHASE_RUNS → status=FAILED (loop guard)
     """
     # Imports localised to avoid circular: engine.py is imported by core.phases.* which import models.
     from llmx_advocate.core.phases import build_phase_registry
@@ -144,6 +151,17 @@ async def run_task_until_blocked(
             return RunOutcome(runs_executed, TaskStatus.FAILED, PhaseId.P1, last_error="task missing")
         if task.status in (TaskStatus.COMPLETED, TaskStatus.FAILED, TaskStatus.PAUSED_FOR_HUMAN):
             return RunOutcome(runs_executed, task.status, task.current_phase, last_error)
+
+        # Global safety net against fallback-loops.
+        all_runs = await repo.list_phase_runs(session, task_id)
+        if len(all_runs) >= MAX_TOTAL_PHASE_RUNS:
+            await repo.update_task_status(
+                session, task_id, status=TaskStatus.FAILED, current_phase=task.current_phase
+            )
+            return RunOutcome(
+                runs_executed, TaskStatus.FAILED, task.current_phase,
+                last_error=f"task exceeded {MAX_TOTAL_PHASE_RUNS} total phase runs (loop guard)",
+            )
 
         phase_id = task.current_phase
         phase = engine.phases[phase_id]
