@@ -161,6 +161,39 @@ def mock_llm(monkeypatch):
         usage=TokenUsage(input_tokens=2000, output_tokens=2500),
         parsed_json={"export_formats": ["landscape"], "scenes": _video_scenes()},
     )
+    publishing_response = LLMResponse(
+        text="",
+        usage=TokenUsage(input_tokens=600, output_tokens=400),
+        parsed_json={
+            "titles": [
+                {
+                    "text": "为什么 90% 的 RAG 项目都活不过 demo？",
+                    "formula_id": "liucun_essence",
+                    "rationale": "点出 RAG 失败的本质原因",
+                },
+                {
+                    "text": "RAG 没死：检索范式从静态到动态的演进",
+                    "formula_id": "liucun_judgment",
+                    "rationale": "呈现核心判断",
+                },
+            ],
+            "description": (
+                "📊 检索范式正在悄悄演进。本期我们拆解 3 个数据信号，"
+                "看为什么 RAG 没有被取代，而是变成 agent 的工具。"
+                "🔍 案例：Anthropic 红队报告里的关键转折。"
+                "💡 洞察：从一次性召回到迭代探索。"
+                "💬 你怎么看？欢迎讨论。"
+            ),
+            "pinned_comment": (
+                "⏱️ 时间戳：\n"
+                "00:00 开场\n"
+                "01:30 章节 1：数据现实\n"
+                "05:00 章节 2：范式转移\n"
+                "08:00 章节 3：对开发者的影响\n"
+                "💬 看完有什么想法？"
+            ),
+        },
+    )
     judge_response = LLMResponse(
         text='{"passed": true, "rationale": "ok"}',
         usage=TokenUsage(input_tokens=80, output_tokens=20),
@@ -179,6 +212,8 @@ def mock_llm(monkeypatch):
     extract_provider.complete = AsyncMock(return_value=extract_response)
     video_provider = AsyncMock()
     video_provider.complete = AsyncMock(return_value=video_response)
+    publishing_provider = AsyncMock()
+    publishing_provider.complete = AsyncMock(return_value=publishing_response)
     judge_provider = AsyncMock()
     judge_provider.complete = AsyncMock(return_value=judge_response)
 
@@ -205,6 +240,10 @@ def mock_llm(monkeypatch):
     monkeypatch.setattr(
         "llmx_advocate.core.phases.p4_video_json.get_provider",
         lambda _: video_provider,
+    )
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p6_publishing.get_provider",
+        lambda _: publishing_provider,
     )
     monkeypatch.setattr(
         "llmx_advocate.core.qa.judges.get_judge_provider",

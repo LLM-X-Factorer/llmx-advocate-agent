@@ -184,21 +184,23 @@ llmx eval batch --source=<src> --models=claude-opus-4-7,deepseek/deepseek-v4-pro
 | **P3** Core Information Extraction（5 维素材丰富度门） | ✅ |
 | **P4** Video JSON Generation（共同 6 红线 + judgment_first 分叉 + 结构校验） | ✅（suspense_first 5 项 judge gate 待 V0.2） |
 | **P5** JSON Self-Check（6 条 TTS-Visual 同步 + 5 项 anti-AI 味 + 结构完整性） | ✅ |
-| **P6** Auxiliary Output（标题 / 简介 / 时间戳） | ⏳ 下一个 |
+| **P6** Auxiliary Output（2-3 个标题 / 简介 / 章节时间戳）| ✅ |
 | Celery worker 接入（M2.3） | 🚧 当前 API 同步跑 |
 | 评测脚手架（task fork / eval compare） | 🚧 |
 | Web 只读详情页（V0.2） | 🚧 |
 | P0 选题预诊断 / P7 商业化对齐 | 🚧 V0.3 之后 |
 
-测试：155/155 通过。
+**🎉 9 phase 全部实现，端到端可跑 task new → COMPLETED。** 测试：174/174 通过。
 
 ## 路线图
 
 - [x] V0.0 规格 + 架构评审 + 项目骨架
 - [x] V0.1 OpenRouter 接入 + LLM 抽象层验证
-- [ ] V0.1 P1 → P6 业务全部实现
+- [x] V0.1 P1 → P6 业务全部实现
+- [ ] V0.1 P4 suspense_first 风格 5 项 judge gate
 - [ ] V0.1 Celery 异步任务（M2.3）
 - [ ] V0.1 评测脚手架（task fork / eval compare）
+- [ ] V0.1 真实端到端 smoke（OpenRouter quota 恢复后跑一次）
 - [ ] V0.2 只读 Web 详情页
 - [ ] V0.3 P0 选题预诊断 / P7 商业化对齐
 - [ ] V1.0 对外开放

@@ -32,8 +32,8 @@ async def test_health(client):
 
 
 @pytest.mark.asyncio
-async def test_create_task_runs_through_p5_then_pauses(client):
-    """P1..P5 all implemented; pauses at P6 (stub)."""
+async def test_create_task_completes_full_pipeline(client):
+    """All 9 phases implemented — task reaches COMPLETED end-to-end via API."""
     pack = (FIXTURES / "scout-pack-example.md").read_text(encoding="utf-8")
     r = await client.post(
         "/tasks",
@@ -45,12 +45,11 @@ async def test_create_task_runs_through_p5_then_pauses(client):
 
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["task"]["status"] == "paused_for_human"
+    assert body["task"]["status"] == "completed"
     assert body["task"]["current_phase"] == "P6"
     by_phase = {r["phase_id"]: r for r in body["runs"]}
-    for pid in ("P1", "P1.5", "P2", "P2.5", "P2.6", "P3", "P4", "P5"):
+    for pid in ("P1", "P1.5", "P2", "P2.5", "P2.6", "P3", "P4", "P5", "P6"):
         assert by_phase[pid]["status"] == "passed", f"{pid} should pass"
-    assert by_phase["P6"]["status"] == "error"
 
 
 @pytest.mark.asyncio
@@ -90,19 +89,19 @@ async def test_list_tasks(client):
 
 
 @pytest.mark.asyncio
-async def test_run_action_resumes_paused(client):
+async def test_run_action_is_idempotent_for_completed_task(client):
+    """A completed task that's POST-actions/run again is idempotent (no extra runs)."""
     pack = (FIXTURES / "manual-pack-example.md").read_text(encoding="utf-8")
     create = await client.post("/tasks", json={"title": "t", "source": {"pack_content": pack}})
     task_id = create.json()["task"]["id"]
-    assert create.json()["task"]["status"] == "paused_for_human"
+    assert create.json()["task"]["status"] == "completed"
 
-    # Resuming a paused task — P1.5 is still a stub, so it pauses again, but the API returns 200.
+    runs_before = len(create.json()["runs"])
     r = await client.post(f"/tasks/{task_id}/actions/run")
     assert r.status_code == 200
     body = r.json()
-    assert body["task"]["status"] == "paused_for_human"
-    # Each resume produces another P1.5 error run.
-    assert len(body["runs"]) >= 3
+    assert body["task"]["status"] == "completed"
+    assert len(body["runs"]) == runs_before  # no new runs
 
 
 @pytest.mark.asyncio

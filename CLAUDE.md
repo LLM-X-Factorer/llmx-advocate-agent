@@ -98,13 +98,21 @@
 - ✅ 完成：**P3** Core Information Extraction（5 维素材丰富度 + findings 数量约束 + 选题受众面）
 - ✅ 完成：**P4** Video JSON Generation（共同 6 红线 + judgment_first 3 项 + 结构校验；suspense_first 5 项 judge gate 待 V0.2）
 - ✅ 完成：**P5** JSON Self-Check（6 条 TTS-Visual 同步 + 5 项 anti-AI 味 + 结构完整性 + duration 公式 sanity）
-- ❌ 未开始：P6
+- ✅ 完成：**P6** Auxiliary Output（2-3 标题 / emoji 简介 / 章节时间戳）
+- ❌ 未开始：P4 suspense_first 风格 5 项 judge gate
 - ❌ 未开始：Celery worker 真接入（M2.3）—— 当前 API 同步跑
 - ❌ 未开始：评测脚手架（task fork / eval compare）
+- ❌ 未做：真实端到端 smoke（受 OpenRouter free tier 配额限制；待后续 quota 恢复或切付费）
 
-**测试覆盖**：155 项（unit 142 + integration 13），全过。Lint 干净。
+**🎉 9 phase 全部实现，集成测试中 task new → COMPLETED 端到端走通**
 
-**下一步**：P6 — Auxiliary Output（标题 2-3 选项 / 视频简介 / 时间戳）。
+**测试覆盖**：174 项（unit 161 + integration 13），全过。Lint 干净。
+
+**下一步**：从这里有几个方向（按优先级排序，由用户拍板）：
+1. 真实端到端 smoke（等 quota）
+2. P4 suspense_first 风格补完
+3. Celery worker 接入（M2.3）
+4. 评测脚手架（task fork / eval compare）—— LLM A/B 对比 SOP 输出
 
 ---
 
@@ -319,6 +327,23 @@
 - 决定：emoji 检测扩展 unicode 范围到 0x2B00-0x2BFF（覆盖 ⭐ U+2B50）+ 0x1F680-0x1F6FF（火箭等）
 - 决定：duration cap warning 检查独立于 visual 字段（不能因为 visual=None 就跳过）
 - 测试覆盖：155 项（unit 142 + integration 13），全过
+
+### 2026-04-27 — P6 业务接通（SOP 链路闭合）
+
+- 完成：`prompts/p6_publishing/extract.md` — 三段式 prompt：标题公式池（按 tier 分叉）+ 简介模板（emoji 看点）+ 置顶时间戳
+- 完成：`prompts/p6_publishing/judges.md` — 2 项 judge：title_reflects_judgment / title_matches_tier
+- 完成：`P6Publishing.run()` — Python 计算章节时间戳传给 LLM（避免 LLM 算时间），LLM 只填美化文字
+- 完成：`P6Publishing.qa()` — **7 个 gate**：
+  - rule：`P6_title_count`（2-3 个）/ `P6_title_length`（15-38 字）/ `P6_no_clickbait`（"震惊！" 等农场词黑名单）/ `P6_description_format`（emoji 看点 + 长度）/ `P6_pinned_has_timestamps`（≥2 个 mm:ss 标记）
+  - judge：`P6_title_reflects_judgment`（标题体现核心判断）/ `P6_title_matches_tier`（风格匹配 tier）
+- 完成：`_compute_chapter_timestamps` 工具函数 — 累加 scenes 的 duration_seconds，在 chapter_transition 处吐出 mm:ss 时间戳
+- 完成：19 项 P6 单测 + 集成测试更新（**首次** task 跑到 COMPLETED 而不是 paused）
+- 决定：P6 fallback = None — 最后一个 phase，失败即任务 fail
+- 决定：标题长度容差 15-38（spec §5.1 推荐 20-30，但实际 LLM 输出常微超）
+- 决定：标题公式池按 tier 分叉，仅暴露当前 tier 的公式给 LLM（避免风格漂移到错误 tier）
+- 决定：dbs-xhs-title 12 类心理触发器作为参考但不直接照搬——B 站决策者口味 ≠ 小红书；spec §6.1 提示过这一点
+- **里程碑**：SOP 9 个 phase 全部实现，集成测试 `test_run_task_completes_full_pipeline` 验证从 source pack → COMPLETED 任务（含全套 phase outputs）端到端可跑
+- 测试覆盖：174 项（unit 161 + integration 13），全过
 
 ---
 
