@@ -51,9 +51,11 @@ class _VideoJSONExtractionError(RuntimeError):
 class P4VideoJSON(Phase):
     """P4 — Video JSON Generation.
 
-    V0.1 implements common red lines (§5.3.0) + judgment_first opening checks
-    (§5.3.1) + structural validation. suspense_first checks (§5.3.2) are wired
-    in a follow-up commit.
+    Common red lines (§5.3.0) + structural validation always run. Style-specific
+    gates are added based on TaskConfig.opening_style:
+      - judgment_first → §5.3.1 (rule: within-15s, before-intro)
+      - suspense_first → §5.3.2 (5 judges: topic_established, hook_strength,
+        credibility_signal, no_answer_leak, judgment_landing)
 
     On retry exhaustion → no fallback (V0.1 fails the task; later may add
     P3 fallback if richness was inadequate).
@@ -125,7 +127,8 @@ class P4VideoJSON(Phase):
         opening_style = _resolve_opening_style(ctx.task.config.opening_style, layer.tier)
         if opening_style == OpeningStyle.JUDGMENT_FIRST:
             gates.extend(_judgment_first_gates(video, judgment))
-        # suspense_first style gates are added in a follow-up commit.
+        elif opening_style == OpeningStyle.SUSPENSE_FIRST:
+            gates.extend(await _suspense_first_gates(video, judgment))
 
         return QAResult(gates=gates, passed_overall=all(g.passed for g in gates))
 
@@ -406,4 +409,113 @@ def _gate_jf_judgment_before_intro(video: VideoJSON) -> QAGate:
         name="hook 在 channel_intro 之前",
         passed=passed,
         rationale="ok" if passed else f"hook at {hook_idx}, intro at {intro_idx}",
+    )
+
+
+# === suspense_first style gates (§5.3.2) ===
+
+
+def _tts_window(video: VideoJSON, start_s: float, end_s: float) -> str:
+    """Return the concatenated tts_text whose cumulative duration falls inside [start_s, end_s)."""
+    cumulative = 0.0
+    chunks: list[str] = []
+    for s in video.scenes:
+        tts = s.get("tts_text") or ""
+        scene_duration = float(s.get("duration_seconds") or 0)
+        scene_end = cumulative + scene_duration
+        # Include this scene's tts if any of its time overlaps [start, end).
+        if scene_end > start_s and cumulative < end_s and tts:
+            chunks.append(tts)
+        cumulative = scene_end
+        if cumulative >= end_s:
+            break
+    return "\n".join(chunks)
+
+
+async def _suspense_first_gates(video: VideoJSON, judgment: Judgment) -> list[QAGate]:
+    early_5s = _tts_window(video, 0.0, 5.0)
+    early_15s = _tts_window(video, 0.0, 15.0)
+    early_30s = _tts_window(video, 0.0, 30.0)
+    tts_30_to_60s = _tts_window(video, 30.0, 60.0)
+
+    return [
+        await _gate_sf_topic_established(early_5s),
+        await _gate_sf_hook_strength(early_15s),
+        await _gate_sf_credibility_signal(early_15s),
+        await _gate_sf_no_answer_leak(early_30s, judgment),
+        await _gate_sf_judgment_landing(tts_30_to_60s, judgment),
+    ]
+
+
+async def _gate_sf_topic_established(early_tts_5s: str) -> QAGate:
+    j = await judge_with_template(
+        "p4_video_json/judges_suspense.md#P4_sf_topic_established",
+        early_tts_5s=early_tts_5s,
+    )
+    return QAGate(
+        gate_id="P4_sf_topic_established",
+        name="0-5s 话题独立建立",
+        passed=j["passed"],
+        rationale=j.get("rationale", "—"),
+    )
+
+
+async def _gate_sf_hook_strength(early_tts_15s: str) -> QAGate:
+    j = await judge_with_template(
+        "p4_video_json/judges_suspense.md#P4_sf_hook_strength",
+        early_tts_15s=early_tts_15s,
+    )
+    return QAGate(
+        gate_id="P4_sf_hook_strength",
+        name="0-15s 命中 5 维素材至少 1 项",
+        passed=j["passed"],
+        rationale=j.get("rationale", "—"),
+    )
+
+
+async def _gate_sf_credibility_signal(early_tts_15s: str) -> QAGate:
+    j = await judge_with_template(
+        "p4_video_json/judges_suspense.md#P4_sf_credibility_signal",
+        early_tts_15s=early_tts_15s,
+    )
+    return QAGate(
+        gate_id="P4_sf_credibility_signal",
+        name="0-15s 出现可信度锚点",
+        passed=j["passed"],
+        rationale=j.get("rationale", "—"),
+    )
+
+
+async def _gate_sf_no_answer_leak(early_tts_30s: str, judgment: Judgment) -> QAGate:
+    j = await judge_with_template(
+        "p4_video_json/judges_suspense.md#P4_sf_no_answer_leak",
+        early_tts_30s=early_tts_30s,
+        judgment_full_sentence=judgment.full_sentence,
+    )
+    return QAGate(
+        gate_id="P4_sf_no_answer_leak",
+        name="0-30s 不直接说出最终结论",
+        passed=j["passed"],
+        rationale=j.get("rationale", "—"),
+    )
+
+
+async def _gate_sf_judgment_landing(tts_30_to_60s: str, judgment: Judgment) -> QAGate:
+    if not tts_30_to_60s.strip():
+        return QAGate(
+            gate_id="P4_sf_judgment_landing",
+            name="30-60s 内判断落地",
+            passed=False,
+            rationale="no tts in 30-60s window — video too short for suspense_first",
+        )
+    j = await judge_with_template(
+        "p4_video_json/judges_suspense.md#P4_sf_judgment_landing",
+        tts_30_to_60s=tts_30_to_60s,
+        judgment_full_sentence=judgment.full_sentence,
+    )
+    return QAGate(
+        gate_id="P4_sf_judgment_landing",
+        name="30-60s 内判断落地",
+        passed=j["passed"],
+        rationale=j.get("rationale", "—"),
     )

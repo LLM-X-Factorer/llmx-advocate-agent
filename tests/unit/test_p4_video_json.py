@@ -363,6 +363,72 @@ async def test_qa_passes_canonical_video(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_qa_with_suspense_style_runs_5_extra_judges(monkeypatch):
+    """When opening_style=suspense_first, 5 §5.3.2 judges run in addition to common."""
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p4_video_json.judge_with_template",
+        AsyncMock(return_value={"passed": True, "rationale": "ok"}),
+    )
+
+    ctx = _ctx(opening_style=OpeningStyle.SUSPENSE_FIRST)
+    output = _mk_video().model_dump(mode="json")
+    qa = await P4VideoJSON().qa(output, ctx)
+
+    assert qa.passed_overall is True
+    gate_ids = {g.gate_id for g in qa.gates}
+    expected_suspense = {
+        "P4_sf_topic_established",
+        "P4_sf_hook_strength",
+        "P4_sf_credibility_signal",
+        "P4_sf_no_answer_leak",
+        "P4_sf_judgment_landing",
+    }
+    assert expected_suspense.issubset(gate_ids)
+
+
+@pytest.mark.asyncio
+async def test_qa_suspense_fails_when_answer_leaks(monkeypatch):
+    async def selective_judge(template_ref: str, **kwargs) -> dict:
+        if "no_answer_leak" in template_ref:
+            return {"passed": False, "rationale": "judgment fully revealed in first 30s"}
+        return {"passed": True, "rationale": "ok"}
+
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p4_video_json.judge_with_template",
+        selective_judge,
+    )
+
+    ctx = _ctx(opening_style=OpeningStyle.SUSPENSE_FIRST)
+    output = _mk_video().model_dump(mode="json")
+    qa = await P4VideoJSON().qa(output, ctx)
+
+    assert qa.passed_overall is False
+    failed_ids = {g.gate_id for g in qa.gates if not g.passed}
+    assert "P4_sf_no_answer_leak" in failed_ids
+
+
+@pytest.mark.asyncio
+async def test_qa_suspense_fails_when_judgment_does_not_land(monkeypatch):
+    async def selective_judge(template_ref: str, **kwargs) -> dict:
+        if "judgment_landing" in template_ref:
+            return {"passed": False, "rationale": "judgment never lands"}
+        return {"passed": True, "rationale": "ok"}
+
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p4_video_json.judge_with_template",
+        selective_judge,
+    )
+
+    ctx = _ctx(opening_style=OpeningStyle.SUSPENSE_FIRST)
+    output = _mk_video().model_dump(mode="json")
+    qa = await P4VideoJSON().qa(output, ctx)
+
+    assert qa.passed_overall is False
+    failed_ids = {g.gate_id for g in qa.gates if not g.passed}
+    assert "P4_sf_judgment_landing" in failed_ids
+
+
+@pytest.mark.asyncio
 async def test_qa_fails_when_judge_says_judgment_missing(monkeypatch):
     async def selective_judge(template_ref: str, **kwargs) -> dict:
         if "judgment_exists" in template_ref:
