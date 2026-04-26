@@ -130,4 +130,17 @@ duration_seconds = max(5, len(tts_text) / 3.2 + 2)
 }
 ```
 
-scenes 总数请尽量接近 {{ target_scene_count }}（容差 ±2），总时长尽量接近 {{ target_duration_seconds }} 秒。
+## ⚠️ 必须达到的输出量
+
+scenes 数组**必须**至少 {{ target_scene_count - 4 }} 个 scene（不要偷懒合并 / 跳过 chapter）。
+总时长**必须**接近 {{ target_duration_seconds }} 秒（中间 content 段每个 ≥ 20 秒口播，含具体数据 / 故事 / 对比）。
+
+**完整结构提醒**：
+1. cover（1）
+2. hook（1）+ channel_intro（1）+ hook_support（1）= 3 个开场
+3. chapter_transition × 至少 3 + 每章 content × 3-5 个 = 至少 12-15 个中段
+4. summary（1）+ outro（1）= 2 个收尾
+
+合计 ≥ {{ target_scene_count - 4 }} 个 scene 是底线。如果你写出来的 scene 少于此数，请补齐章节内的 content。
+
+每个 content scene 的 tts_text **不少于 60 字**（约 20 秒口播）。

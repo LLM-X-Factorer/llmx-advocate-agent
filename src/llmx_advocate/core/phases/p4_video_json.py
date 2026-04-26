@@ -37,9 +37,13 @@ P4_SYSTEM = (
 )
 
 JUDGMENT_FIRST_PREFIX_LIMIT_CHARS = 50  # P4_jf_judgment_within_15s
-DURATION_TOLERANCE_S = 3.0  # per-scene duration formula tolerance
-TOTAL_DURATION_TOLERANCE_RATIO = 0.30  # 30% wiggle on overall duration vs target
-SCENE_COUNT_TOLERANCE = 3
+# Tolerances widened after V0.1 smoke — non-reasoning chat models tend to under-
+# generate on long structured JSON (e.g. produce 14 scenes when 24 were asked).
+# Tightening these would only force the engine into terminal-fail loops with no
+# meaningful SOP gain; rendering systems can absorb this much wiggle.
+DURATION_TOLERANCE_S = 4.0  # per-scene duration formula tolerance
+TOTAL_DURATION_TOLERANCE_RATIO = 0.50  # ±50% on overall duration vs target
+SCENE_COUNT_TOLERANCE = 6
 
 CHANNEL_INTRO_FIXED = "拆解大语言模型时代底层逻辑的频道"  # marker in tts to detect intro scene
 

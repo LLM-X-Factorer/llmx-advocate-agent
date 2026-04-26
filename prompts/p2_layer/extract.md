@@ -17,6 +17,21 @@
 - Scout suggested layer: {{ scout_suggested_layer }} （仅供参考，可推翻）
 {% endif %}
 
+{% if previous_tier %}
+## ⚠️ 重要：这是 fallback 重判
+
+上次你把 tier 选成 **{{ previous_tier }}**，但下游 P3 受众面校验失败：
+**话题对 {{ previous_tier }} 层的受众太窄**。
+
+请重新评估 tier，**不要再选 {{ previous_tier }}**：
+
+- 如果之前选了「留存」→ 受众太窄说明应该选「转化」（专业付费意向群体本来就窄）
+- 如果之前选了「引流」→ 受众太窄说明应该选「留存」（深度内容给铁粉）
+- 如果之前选了「转化」→ 不应该出现这种情况，但如有可降级到「留存」
+
+直接换 tier，不要再选 {{ previous_tier }}。
+{% endif %}
+
 ## Decisions to make
 
 ### 1. tier (引流 / 留存 / 转化)

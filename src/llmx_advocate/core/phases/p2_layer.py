@@ -60,6 +60,13 @@ class P2Layer(Phase):
             else None
         )
 
+        # If P3 fell back to P2, our previous (passing) P2 output is in upstream_outputs
+        # under our own phase id. Surface its tier as a "do not pick again" signal —
+        # P3 only fails back to P2 when topic_breadth says the prior tier was wrong.
+        previous_tier = None
+        if PhaseId.P2 in ctx.upstream_outputs:
+            previous_tier = ctx.upstream_outputs[PhaseId.P2].get("tier")
+
         body_excerpt = _truncate(pack.body_markdown, BODY_EXCERPT_MAX_CHARS)
         prompt = render(
             "p2_layer/extract.md",
@@ -67,6 +74,7 @@ class P2Layer(Phase):
             body_excerpt=body_excerpt,
             angle=angle,
             scout_suggested_layer=scout_suggested,
+            previous_tier=previous_tier,
         )
 
         provider = get_provider(ctx.task.config.llm_provider)

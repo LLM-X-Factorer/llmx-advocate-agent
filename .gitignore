@@ -62,3 +62,6 @@ redis-data/
 
 # Tasks workspace (local task outputs / blobs cached by CLI)
 .tasks/
+
+# Claude Code local state
+.claude/

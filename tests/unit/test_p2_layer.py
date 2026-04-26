@@ -211,6 +211,49 @@ async def test_run_invokes_llm_and_returns_profile(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_run_passes_previous_tier_into_prompt(monkeypatch):
+    """When P3 falls back to P2, the prior tier must surface in the prompt so the
+    model picks a different one. Without this, P2 gives the same answer forever."""
+    captured: dict = {}
+
+    fake_response = LLMResponse(
+        text="",
+        usage=TokenUsage(input_tokens=200, output_tokens=80),
+        parsed_json={
+            "tier": "转化",
+            "characteristic_scores": {
+                "data_impact": 4, "technical_depth": 4, "narrative_quality": 3,
+                "timeliness": 4, "authority": 4, "decision_relevance": 5,
+            },
+            "target_duration_seconds": 720,
+            "target_scene_count": 27,
+            "export_formats": ["landscape"],
+        },
+    )
+
+    async def capture_complete(req):
+        captured["prompt"] = req.messages[0]["content"]
+        return fake_response
+
+    fake_provider = AsyncMock()
+    fake_provider.complete = AsyncMock(side_effect=capture_complete)
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p2_layer.get_provider",
+        lambda _: fake_provider,
+    )
+
+    ctx = _ctx(_mk_pack(), _mk_angle())
+    # Engine puts the prior P2 output into upstream_outputs after P3 falls back to P2.
+    ctx.upstream_outputs[PhaseId.P2] = {"tier": "留存"}
+
+    output = await P2Layer().run(ctx)
+
+    assert "留存" in captured["prompt"]
+    assert "fallback 重判" in captured["prompt"]
+    assert output["tier"] == "转化"
+
+
+@pytest.mark.asyncio
 async def test_qa_combines_all_gates():
     p2 = P2Layer()
     ctx = _ctx(_mk_pack(), _mk_angle())
