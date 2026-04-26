@@ -5,58 +5,86 @@
 > Failing here doesn't get retried with a "better prompt" — the engine retries with a
 > different angle (fallback to P1.5).
 
+## ⚠️ OUTPUT LANGUAGE: 中文 (Chinese)
+
+**所有输出字段（`surface` / `transition` / `deeper_essence` / `full_sentence` / `override_reason`）必须用简体中文。**
+- B 站受众是中文用户；判断必须可以直接口播
+- `full_sentence` **硬约束 ≤ 50 个汉字**（约等于 15 秒口播）— 超过即失败重试
+
 ## Inputs
-- Source pack body: {{ source_pack.body_markdown }}
-- Source pack scout_analysis (may be null): {{ source_pack.scout_analysis }}
-- Chosen angle: {{ angle }}
-- Layer profile (tier, scores): {{ layer_profile }}
 
-## judgment_seed handling (CRITICAL)
+- Source pack title: {{ source_pack.source.title }}
+- Pack body excerpt:
+{{ body_excerpt }}
 
-If `source_pack.scout_analysis.judgment_seed` is provided, treat it as a **starting point**, not a finished verdict.
+- Chosen angle (P1.5):
+  - core_tension: {{ angle.core_tension }}
+  - your_position: {{ angle.your_position }}
 
-You have two valid outputs:
+- Layer profile (P2):
+  - tier: {{ layer_profile.tier }}
 
-1. **Keep the seed** — fill `seed_judgment=<the seed>`, `overrode_seed=False`.
-   Still surface your own reasoning to validate it; if you can't independently arrive at the seed, you don't actually understand it — go to option 2.
+{% if source_pack.scout_analysis and source_pack.scout_analysis.judgment_seed %}
+- Scout judgment_seed (起点参考，可推翻): {{ source_pack.scout_analysis.judgment_seed }}
+{% endif %}
 
-2. **Override the seed** — your independent analysis lands on a different judgment.
-   Fill `seed_judgment=<the seed>`, `overrode_seed=True`, `override_reason=<why your judgment is more accurate>`.
+## judgment_seed handling
 
-If `judgment_seed` is null (manual pack / scout had nothing), fill `seed_judgment=None`, `overrode_seed=False`.
+如果 scout 提供了 `judgment_seed`，把它当作**起点**而非定论：
 
-**Either way, the 4 P2.5 QA gates run on the final `full_sentence`** (§5.1) — the seed gets no immunity.
+1. **沿用** — 你独立分析后认同种子的本质。`overrode_seed=False`，但仍要用自己的话写 `full_sentence`（不抄种子）
+2. **推翻** — 你的分析得到不同结论。`overrode_seed=True`，填 `override_reason`（说明哪里更准确）
 
-## Output schema (JSON)
+**4 项 QA 在最终 `full_sentence` 上跑，种子无豁免。**
+
+## 输出格式（严格 JSON）
+
 ```json
 {
-  "surface": "...",
+  "surface": "<表面现象，中文，≤30字>",
   "transition": "但其实 / 真正原因是 / 背后是 / 本质上",
-  "deeper_essence": "...",
-  "full_sentence": "...",
-  "seed_judgment": "<seed if any, else null>",
+  "deeper_essence": "<深层本质，中文，≤30字>",
+  "full_sentence": "<一句话核心判断，中文，≤50汉字>",
+  "seed_judgment": "<种子原文 / null>",
   "overrode_seed": false,
-  "override_reason": null
+  "override_reason": "<推翻理由 / null>"
 }
 ```
 
-## Extraction techniques (use one or combine)
+仅返回 JSON 对象本身，不要 markdown 围栏，不要任何解释。
 
-1. **"所以呢" 链** — keep asking "so what?" until you reach a structural insight.
-2. **"和 X 有什么不同" 对比** — what changes structurally compared to prior art?
-3. **"如果我是决策者" 视角** — what would a decision-maker care about that the article skipped?
+## SOP 成功案例（参考结构 + 字数）
 
-## Wittgenstein/Austrian sanity checks (from dbs-deconstruct)
-- 伪概念检测：去掉关键词，用大白话还能说清吗？
-- Question vs Problem：是有标准答案的事，还是需要实践的事？
-- 主观价值论：判断是否预设了"客观价值"？
+| 完整判断（≤50 字） | 字数 |
+|---|---|
+| 不是因为安全漏洞，而是因为它太好用了——好用到动了巨头的命根子 | 28 |
+| 很多人只看到省Token三个字就划走了，但我发现这背后是整个Agent开发逻辑的彻底重构 | 38 |
+| Alignment的本质不是技术问题，是权力问题——谁的钱多，就对齐谁 | 27 |
+
+## 抽取技巧（任选 / 组合）
+
+1. **"所以呢" 链** — 不停问 so what，直到触及结构性洞察
+2. **"和 X 有什么不同"** — 与同类相比，根本差异在哪
+3. **"如果我是决策者，我该怎么想"** — 决策者会关心但原文没说的事
+
+## Wittgenstein/Austrian 校准（来自 dbs-deconstruct）
+
+- 伪概念检测：去掉关键词用大白话还能说清吗？说不清→可能是伪概念
+- Question vs Problem：是有标准答案的事，还是要实践的事？
 - 价格信号：判断能否被市场行为验证？
 
-## Forbidden outputs
+## 禁止输出
+
 - 复述原文（违反 P2.5_uniqueness）
 - 必须看原文才能理解（违反 P2.5_independent_value）
-- > 50 字（违反 P2.5_brevity）
-- 包含来源背书短语（违反 P2.5_anti_relay）
+- 超过 50 汉字（违反 P2.5_brevity）
+- "今天聊一个 / 刚上 HN 热榜 / 我来给大家解读" 等搬运工短语（违反 P2.5_anti_relay）
+- 抽象口号（"X 改变世界"、"Y 是未来"）— 必须有具体的结构性内容
 
-## Final check before returning
-Read your full_sentence aloud. If it takes longer than 15 seconds at 3.2 chars/sec, shorten.
+## 最后一步：自检
+
+在返回前**默念 `full_sentence`**：
+- 是中文吗？是
+- 数过字数 ≤ 50 吗？数清楚
+- 不依赖原文也能让人听懂吗？是
+- 有具体内容（不是口号）吗？有

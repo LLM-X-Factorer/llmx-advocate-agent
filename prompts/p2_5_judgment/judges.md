@@ -28,7 +28,7 @@ P2.5_cognition_gap. Always returns binary JSON {"passed": bool, "rationale": str
 返回 JSON: {"passed": bool, "rationale": "..."}
 ```
 
-## P2.5_anti_relay (judge half)
+## P2.5_anti_relay
 
 ```
 判断："{{ judgment.full_sentence }}"
@@ -43,7 +43,7 @@ P2.5_cognition_gap. Always returns binary JSON {"passed": bool, "rationale": str
 返回 JSON: {"passed": bool, "rationale": "..."}
 ```
 
-## P2.5_cognition_gap (optional)
+## P2.5_cognition_gap
 
 ```
 话题："{{ topic }}"

@@ -181,6 +181,7 @@ async def run_task_until_blocked(
                 last_error=f"stub phase: {e}",
             )
         except Exception as e:
+            import traceback
             last_error = f"{type(e).__name__}: {e}"
             await _save_run(
                 session,
@@ -189,7 +190,10 @@ async def run_task_until_blocked(
                 attempt=attempt,
                 provider=task.config.llm_provider,
                 model=task.config.llm_model,
-                output={},
+                output={
+                    "_error": last_error,
+                    "_traceback": traceback.format_exc()[-2000:],
+                },
                 qa=None,
                 status=PhaseRunStatus.ERROR,
                 started=started,

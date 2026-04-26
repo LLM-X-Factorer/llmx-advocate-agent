@@ -21,3 +21,13 @@ def _env() -> Environment:
 def render(template_path: str, **context) -> str:
     """Render a prompt template by path, e.g. 'p1_5_angle/extract.md'."""
     return _env().get_template(template_path).render(**context)
+
+
+def render_string(template_string: str, **context) -> str:
+    """Render an inline Jinja2 string with the same env settings."""
+    return _env().from_string(template_string).render(**context)
+
+
+def read_raw(template_path: str) -> str:
+    """Read a prompt file as raw text (no rendering)."""
+    return (PROMPTS_DIR / template_path).read_text(encoding="utf-8")

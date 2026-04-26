@@ -58,6 +58,19 @@ def mock_llm(monkeypatch):
             "export_formats": ["landscape"],
         },
     )
+    judgment_response = LLMResponse(
+        text="",
+        usage=TokenUsage(input_tokens=400, output_tokens=120),
+        parsed_json={
+            "surface": "RAG 被 agent 取代",
+            "transition": "但其实",
+            "deeper_essence": "检索范式从一次性到迭代",
+            "full_sentence": "RAG 没有死，它从主角变成了 agent 的工具",
+            "seed_judgment": None,
+            "overrode_seed": False,
+            "override_reason": None,
+        },
+    )
     judge_response = LLMResponse(
         text='{"passed": true, "rationale": "ok"}',
         usage=TokenUsage(input_tokens=80, output_tokens=20),
@@ -68,6 +81,8 @@ def mock_llm(monkeypatch):
     angle_provider.complete = AsyncMock(return_value=angle_response)
     layer_provider = AsyncMock()
     layer_provider.complete = AsyncMock(return_value=layer_response)
+    judgment_provider = AsyncMock()
+    judgment_provider.complete = AsyncMock(return_value=judgment_response)
     judge_provider = AsyncMock()
     judge_provider.complete = AsyncMock(return_value=judge_response)
 
@@ -78,6 +93,10 @@ def mock_llm(monkeypatch):
     monkeypatch.setattr(
         "llmx_advocate.core.phases.p2_layer.get_provider",
         lambda _: layer_provider,
+    )
+    monkeypatch.setattr(
+        "llmx_advocate.core.phases.p2_5_judgment.get_provider",
+        lambda _: judgment_provider,
     )
     monkeypatch.setattr(
         "llmx_advocate.core.qa.judges.get_judge_provider",

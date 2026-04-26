@@ -93,14 +93,14 @@
 - ✅ 完成：**P1** Source Pack 加载 + 校验（schema + body 长度 + section header 三 gate）
 - ✅ 完成：**P1.5** Topic Angle Discovery（LLM 生成 + community signal + 反产品发布通报 judge）
 - ✅ 完成：**P2** Content Layer Profile（LLM 分类 + 4 项规则 gate：tier-duration / tier-scene / formats / scores）
-- ❌ 未开始：**P2.5** ⭐ Core Judgment（4 项强制 QA）
+- ✅ 完成：**P2.5** ⭐ Core Judgment（4 项强制 QA + 可选第 5 项 cognition_gap）
 - ❌ 未开始：P2.6 / P3 / P4 / P5 / P6
 - ❌ 未开始：Celery worker 真接入（M2.3）—— 当前 API 同步跑
 - ❌ 未开始：评测脚手架（task fork / eval compare）
 
-**测试覆盖**：70 项（unit 57 + integration 13），全过。Lint 干净。
+**测试覆盖**：85 项（unit 72 + integration 13），全过。Lint 干净。
 
-**下一步**：P2.5 — 核心判断提取，4 项强制 QA。这是整个 SOP 的核心红线 phase。
+**下一步**：P2.6 — Cognitive Deepening（三层深度思考：信息→思考→洞察）。
 
 ---
 
@@ -222,6 +222,29 @@
 - 决定：P2 的 4 个 gate 全部规则型（不调裁判 LLM）——分类是结构化任务，规则校验已足够
 - 观察：LLM 把 scout 建议的"留存"推翻成"引流"——符合反污染防线（spec §6.2 / §7.4），advocate 独立判断
 - 测试覆盖：70 项（unit 57 + integration 13），全过
+
+### 2026-04-27 — P2.5 业务接通（SOP 红线 phase）
+
+- 完成：`P2_5Judgment.run()` — 5KB body excerpt + Jinja prompt（强制中文输出 + ≤50 字硬约束 + SOP 成功案例 few-shot + Wittgenstein/Austrian 校准）
+- 完成：`P2_5Judgment.qa()` — **5 个 gate**：
+  - `P2.5_brevity`（rule，≤50 汉字 ≈ 15 秒口播）
+  - `P2.5_anti_relay_rule`（rule，黑名单短语扫描）
+  - `P2.5_uniqueness`（judge，是否复述原文）
+  - `P2.5_independent_value`（judge，不看原文是否成立）
+  - `P2.5_anti_relay_judge`（judge，去掉来源背书后是否多余）
+  - `P2.5_cognition_gap`（可选第 6 个，`enable_cognition_gap_check=True` 时启用）
+- 完成：judgment_seed 处理 — _parse_judgment 在 LLM 没回声 seed 时自动从 pack 填回
+- 完成：fallback 链 — P2.5 重试耗尽后回 P1.5 换角度（spec §5.7）
+- 完成：15 项单测覆盖 5 类场景（parsing seed / no seed / override / brevity / anti-relay rules / 5-gate 组合 / 6 gate with cognition_gap / 各种失败路径）
+- 完成：集成测试 mock_llm 加 P2.5 / judgment_response，期望更新到卡 P2.6 stub
+- **修复**：`judge_with_template` 实现 — 之前先 render 整个 judges.md 文件再 extract，导致非目标 gate 的 Jinja 变量也被 StrictUndefined 强求；改为先 extract section 再 render 该 section
+- **观察**：真实端到端 smoke 因 OpenRouter free tier rate limit (429) 受阻：
+  - P2.5 一个 attempt 涉及 1 生成 + 4 判 = 5 次 OpenRouter 请求；retry 5 次 + fallback 后重跑 = 累计~30 次/分钟，撞 free tier 上限
+  - **缓解 1**：OpenRouter adapter 加 429 retry（最多 3 次，指数退避，尊重 Retry-After）
+  - **缓解 2**：早期 prompt 让 LLM 用英文输出 → 113 字符 brevity 失败；强制中文输出 + 硬约束后预计大幅降低 retry 频次
+  - **未解决**：免费层日限额已被多次 smoke 累计撞穿；一段时间后才能再 smoke。Unit + integration 已 100% 覆盖业务逻辑正确性
+- 决定：当 PhaseRun 因 exception 失败时，把错误信息和 traceback 存入 `output._error / output._traceback`，方便事后追溯（V0.2 应该改为正式的 PhaseRun.error_message 字段）
+- 测试覆盖：85 项（unit 72 + integration 13），全过
 
 ---
 

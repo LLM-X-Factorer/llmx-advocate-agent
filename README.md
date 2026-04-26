@@ -179,14 +179,15 @@ llmx eval batch --source=<src> --models=claude-opus-4-7,deepseek/deepseek-v4-pro
 | **P1** Source Pack 加载 + 校验 | ✅ |
 | **P1.5** Topic Angle Discovery（LLM） | ✅ |
 | **P2** Content Layer & Characteristic（LLM） | ✅ |
-| **P2.5** Core Judgment（红线 4 项 QA） | ⏳ 下一个 |
-| P2.6 / P3 / P4 / P5 / P6 | 🚧 stub，待实现 |
+| **P2.5** Core Judgment（4 项强制 QA + 可选第 5 项） | ✅ |
+| **P2.6** Cognitive Deepening | ⏳ 下一个 |
+| P3 / P4 / P5 / P6 | 🚧 stub，待实现 |
 | Celery worker 接入（M2.3） | 🚧 当前 API 同步跑 |
 | 评测脚手架（task fork / eval compare） | 🚧 |
 | Web 只读详情页（V0.2） | 🚧 |
 | P0 选题预诊断 / P7 商业化对齐 | 🚧 V0.3 之后 |
 
-测试：70/70 通过。
+测试：85/85 通过。
 
 ## 路线图
 

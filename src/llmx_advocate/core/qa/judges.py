@@ -9,7 +9,7 @@ from __future__ import annotations
 import re
 
 from llmx_advocate.core.llm.provider import LLMRequest, get_judge_provider
-from llmx_advocate.core.prompts import render
+from llmx_advocate.core.prompts import read_raw, render_string
 from llmx_advocate.settings import get_settings
 
 JUDGE_SYSTEM = (
@@ -51,9 +51,12 @@ async def judge_with_template(template_ref: str, **context) -> dict:
         raise ValueError(f"template_ref must include '#GATE_ID': {template_ref!r}")
     file_path, gate_id = template_ref.split("#", 1)
 
-    full_md = render(file_path, **context)
-    section_text = _extract_judge_section(full_md, gate_id)
-    return await judge(section_text)
+    # Extract the section *first*, then render — otherwise Jinja must satisfy variables
+    # for every gate in the file even when we only target one.
+    raw_md = read_raw(file_path)
+    section_template = _extract_judge_section(raw_md, gate_id)
+    rendered = render_string(section_template, **context)
+    return await judge(rendered)
 
 
 def _extract_judge_section(markdown: str, gate_id: str) -> str:

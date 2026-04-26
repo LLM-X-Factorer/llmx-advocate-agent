@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+
 import httpx
 
 from llmx_advocate.core.llm.provider import (
@@ -12,6 +14,8 @@ from llmx_advocate.core.models import TokenUsage
 from llmx_advocate.settings import get_settings
 
 OPENROUTER_BASE = "https://openrouter.ai/api/v1"
+RATE_LIMIT_RETRIES = 3
+RATE_LIMIT_BACKOFF_BASE_S = 2.0
 
 
 class OpenRouterProvider(LLMProvider):
@@ -42,8 +46,16 @@ class OpenRouterProvider(LLMProvider):
             body["response_format"] = {"type": "json_object"}
 
         async with httpx.AsyncClient(timeout=httpx.Timeout(120.0)) as client:
-            r = await client.post(f"{OPENROUTER_BASE}/chat/completions", headers=headers, json=body)
-            r.raise_for_status()
+            for attempt in range(RATE_LIMIT_RETRIES + 1):
+                r = await client.post(
+                    f"{OPENROUTER_BASE}/chat/completions", headers=headers, json=body
+                )
+                if r.status_code != 429 or attempt == RATE_LIMIT_RETRIES:
+                    r.raise_for_status()
+                    break
+                # Honor Retry-After if present, else exponential backoff.
+                wait_s = float(r.headers.get("Retry-After", RATE_LIMIT_BACKOFF_BASE_S * 2 ** attempt))
+                await asyncio.sleep(min(wait_s, 30.0))
             data = r.json()
 
         choice = data["choices"][0]
