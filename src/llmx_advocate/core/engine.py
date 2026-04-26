@@ -60,7 +60,7 @@ FALLBACK_TABLE: dict[PhaseId, PhaseId | None] = {
     PhaseId.P2: None,
     PhaseId.P2_5: PhaseId.P1_5,
     PhaseId.P2_6: PhaseId.P2_5,
-    PhaseId.P3: None,
+    PhaseId.P3: PhaseId.P2,  # topic_breadth failure → re-classify tier
     PhaseId.P4: None,
     PhaseId.P5: PhaseId.P4,
     PhaseId.P6: None,

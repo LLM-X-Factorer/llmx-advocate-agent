@@ -41,10 +41,15 @@ class P3Extract(Phase):
       - P3_findings_have_data       (rule: each finding has key_data or source)
       - P3_material_richness        (rule: ≥3 of 5 material dims non-empty)
       - P3_topic_breadth            (judge, skipped when tier=转化)
+
+    On retry exhaustion → fallback to P2. P3_topic_breadth is the most likely
+    terminal failure for niche technical packs (e.g. "DeepSeek-v4 inference
+    quantisation" with tier=留存); re-running P2 lets the advocate re-classify
+    the tier (留存 → 转化 narrows the audience expectation and skips the gate).
     """
 
     phase_id = PhaseId.P3
-    fallback_target = None
+    fallback_target = PhaseId.P2
 
     async def run(self, ctx: TaskContext) -> dict:
         pack = SourcePack.model_validate(ctx.upstream_outputs[PhaseId.P1])
