@@ -12,14 +12,15 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import async_sessionmaker
 
-from llmx_advocate.core.engine import PhaseEngine, run_task_until_blocked as _run_task_until_blocked
+from llmx_advocate.core.engine import PhaseEngine
+from llmx_advocate.core.engine import run_task_until_blocked as _run_task_until_blocked
 from llmx_advocate.core.phases import build_phase_registry
 from llmx_advocate.store.db import get_engine
 from llmx_advocate.worker.app import app
 
 
 @app.task(name="llmx.run_task", bind=True, max_retries=0)
-def run_task(self, task_id: str) -> dict[str, Any]:  # noqa: ARG001
+def run_task(self, task_id: str) -> dict[str, Any]:
     """Drive a task until it pauses, completes, or fails.
 
     Re-enqueueable: callers can fire this whenever they POST /tasks/{id}/actions/run.
