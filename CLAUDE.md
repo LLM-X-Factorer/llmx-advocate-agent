@@ -99,20 +99,19 @@
 - ✅ 完成：**P4** Video JSON Generation（共同 6 红线 + judgment_first 3 项 + 结构校验；suspense_first 5 项 judge gate 待 V0.2）
 - ✅ 完成：**P5** JSON Self-Check（6 条 TTS-Visual 同步 + 5 项 anti-AI 味 + 结构完整性 + duration 公式 sanity）
 - ✅ 完成：**P6** Auxiliary Output（2-3 标题 / emoji 简介 / 章节时间戳）
-- ❌ 未开始：P4 suspense_first 风格 5 项 judge gate
-- ❌ 未开始：Celery worker 真接入（M2.3）—— 当前 API 同步跑
-- ❌ 未开始：评测脚手架（task fork / eval compare）
-- ❌ 未做：真实端到端 smoke（受 OpenRouter free tier 配额限制；待后续 quota 恢复或切付费）
+- ✅ 完成：**P4 suspense_first** 5 项 judge gate（spec §5.3.2）
+- ✅ 完成：**Celery worker** 接入（opt-in via `run_async=true`，inline 仍是默认）
+- ✅ 完成：**评测脚手架** —— `eval fork` / `eval compare` / `eval batch`，A/B 框架就绪
+- 🟡 部分完成：真实端到端 smoke —— P1/P1.5/P2 用 deepseek-v4-pro 跑通；P2.5 受 Ling-1T 裁判过严阻塞（建议未来切付费裁判 model）
 
-**🎉 9 phase 全部实现，集成测试中 task new → COMPLETED 端到端走通**
+**🎉 V0.1 主线全部完成：9 phase + Celery + 评测脚手架。185/185 测试通过。**
 
-**测试覆盖**：174 项（unit 161 + integration 13），全过。Lint 干净。
+**测试覆盖**：185 项（unit 163 + integration 22），全过。Lint 干净。
 
-**下一步**：从这里有几个方向（按优先级排序，由用户拍板）：
-1. 真实端到端 smoke（等 quota）
-2. P4 suspense_first 风格补完
-3. Celery worker 接入（M2.3）
-4. 评测脚手架（task fork / eval compare）—— LLM A/B 对比 SOP 输出
+**下一步候选**：
+1. 拿到 Anthropic key 后切回 Claude Opus 当裁判 → P2.5 应该能稳定 pass
+2. V0.2：只读 Web 详情页（Next.js / RSC，反正后端 API 完整）
+3. V0.3：P0 选题预诊断 / P7 商业化对齐（dbs-* 整合的可选 phase）
 
 ---
 
@@ -344,6 +343,34 @@
 - 决定：dbs-xhs-title 12 类心理触发器作为参考但不直接照搬——B 站决策者口味 ≠ 小红书；spec §6.1 提示过这一点
 - **里程碑**：SOP 9 个 phase 全部实现，集成测试 `test_run_task_completes_full_pipeline` 验证从 source pack → COMPLETED 任务（含全套 phase outputs）端到端可跑
 - 测试覆盖：174 项（unit 161 + integration 13），全过
+
+### 2026-04-27 — 真实 smoke / P4 suspense_first / Celery / 评测脚手架（V0.1 主线收官）
+
+**真实 smoke 进展（不算完美但定位清晰）**
+- 验证 deepseek-v4-pro 通过 OpenRouter 可用，单次 reasoning ~50s，但长 prompt 下 SiliconFlow 端 504 频发
+- 修复：OpenRouter adapter 不再传 `response_format=json_object`（很多 endpoint 拒此参数返 404 guardrail），retry on 502/503/504，timeout 提到 180s，200-with-error-envelope 给清晰错误而非 KeyError
+- 修复：engine attempt 计数 scope 到"自上次 fallback 起"，加 60-run 全局上限避免 fallback 循环
+- 切回 deepseek-chat 后跑通 P1 / P1.5 / P2，**P2.5 撞 Ling-1T:free 裁判过严**（`anti_relay_judge` 反复说"判断需要来源借力"）—— 这是 V0.1 已知运营缺口，等切付费裁判 model 后再做完整 smoke
+
+**P4 suspense_first 风格补完**
+- 5 项 judge gate（spec §5.3.2）：topic_established (0-5s) / hook_strength (0-15s) / credibility_signal (0-15s) / no_answer_leak (0-30s) / judgment_landing (30-60s)
+- `_tts_window(start, end)` 工具函数 —— 按 cumulative duration 切窗口
+- 当 `TaskConfig.opening_style=suspense_first` 时这 5 项与共同红线一起跑
+- 决定：每个时间窗只做一次 judge call（共 5 次）—— 进一步切片成本不可控
+
+**Celery worker 接入**
+- worker.tasks.run_task 不再是 stub，asyncio.run 包装 engine.run_task_until_blocked
+- API 加 `run_async: bool` 字段（默认 false）—— inline 路径保留为本地 dev 默认（无需 Redis）；docker-compose 部署可设为 true
+- worker.app 已配置（Redis broker），M2.3 完成
+
+**评测脚手架（spec §4.1.1 兑现）**
+- `core.evaluation.fork_task` —— 复制 source pack 到新 task，可 override llm_provider/model/opening_style
+- `core.evaluation.compare_tasks` —— 返回每 phase 的 status/attempts/duration/tokens 对比
+- `core.evaluation.diff_against_config` —— 显示两 TaskConfig 的差异
+- API：POST /eval/fork/{id}, GET /eval/compare?a=&b=, POST /eval/batch（model × style 笛卡尔积）
+- CLI：`llmx eval fork / compare / batch`，rich 表格输出
+
+**测试覆盖**：185 项（unit 163 + integration 22），全过
 
 ---
 

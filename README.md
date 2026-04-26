@@ -136,16 +136,13 @@ llmx task new <pack_path>         # 喂一个 source pack 文件路径
 llmx task list
 llmx task show <id>
 llmx task run <id>                # 一直执行到完成或卡住
-llmx task step <id>               # 单步推进
 llmx task pause <id> / resume <id>
-llmx task edit <id> <phase>       # $EDITOR 里改产出
-llmx task qa <id> <phase>         # 重跑该 phase 质检
-llmx task export <id> --out=./   # 导出 video.json + 标题/简介
 
 # 评测（A/B 对比）
-llmx task fork <id> --model=deepseek/deepseek-v4-pro --opening-style=suspense_first
+llmx eval fork <id> --model=deepseek/deepseek-v4-pro --opening-style=suspense_first
 llmx eval compare <task_a_id> <task_b_id>
-llmx eval batch --source=<src> --models=claude-opus-4-7,deepseek/deepseek-v4-pro
+llmx eval batch --source=<pack> --models=deepseek/deepseek-chat,deepseek/deepseek-v4-pro \
+  --opening-styles=judgment_first,suspense_first
 ```
 
 ## 文档
@@ -182,25 +179,25 @@ llmx eval batch --source=<src> --models=claude-opus-4-7,deepseek/deepseek-v4-pro
 | **P2.5** Core Judgment（4 项强制 QA + 可选第 5 项） | ✅ |
 | **P2.6** Cognitive Deepening（4 项 Depth Test） | ✅ |
 | **P3** Core Information Extraction（5 维素材丰富度门） | ✅ |
-| **P4** Video JSON Generation（共同 6 红线 + judgment_first 分叉 + 结构校验） | ✅（suspense_first 5 项 judge gate 待 V0.2） |
+| **P4** Video JSON Generation（共同 6 红线 + judgment_first 3 项 + suspense_first 5 项 + 结构校验） | ✅ |
 | **P5** JSON Self-Check（6 条 TTS-Visual 同步 + 5 项 anti-AI 味 + 结构完整性） | ✅ |
 | **P6** Auxiliary Output（2-3 个标题 / 简介 / 章节时间戳）| ✅ |
-| Celery worker 接入（M2.3） | 🚧 当前 API 同步跑 |
-| 评测脚手架（task fork / eval compare） | 🚧 |
+| Celery worker 接入（异步任务推进） | ✅（`run_async=true` opt-in，inline 仍是默认）|
+| 评测脚手架（task fork / eval compare / eval batch） | ✅ |
 | Web 只读详情页（V0.2） | 🚧 |
 | P0 选题预诊断 / P7 商业化对齐 | 🚧 V0.3 之后 |
 
-**🎉 9 phase 全部实现，端到端可跑 task new → COMPLETED。** 测试：174/174 通过。
+**🎉 9 phase 全部实现 + Celery 接入 + A/B 评测脚手架。** 测试：185/185 通过。
 
 ## 路线图
 
 - [x] V0.0 规格 + 架构评审 + 项目骨架
-- [x] V0.1 OpenRouter 接入 + LLM 抽象层验证
+- [x] V0.1 OpenRouter 接入 + LLM 抽象层验证（DeepSeek-chat / R1 / V4-Pro / Ling-1T）
 - [x] V0.1 P1 → P6 业务全部实现
-- [ ] V0.1 P4 suspense_first 风格 5 项 judge gate
-- [ ] V0.1 Celery 异步任务（M2.3）
-- [ ] V0.1 评测脚手架（task fork / eval compare）
-- [ ] V0.1 真实端到端 smoke（OpenRouter quota 恢复后跑一次）
+- [x] V0.1 P4 suspense_first 风格 5 项 judge gate
+- [x] V0.1 Celery 异步任务（opt-in via `run_async=true`）
+- [x] V0.1 评测脚手架（task fork / eval compare / eval batch）
+- [ ] V0.1 真实端到端 smoke（已部分跑通 P1-P3；P2.5 受 Ling-1T 裁判过严限制，待切付费裁判模型）
 - [ ] V0.2 只读 Web 详情页
 - [ ] V0.3 P0 选题预诊断 / P7 商业化对齐
 - [ ] V1.0 对外开放
