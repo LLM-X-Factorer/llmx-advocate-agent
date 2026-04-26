@@ -33,11 +33,23 @@ class CreateTaskRequest(BaseModel):
     title: str
     source: SourceInput
     config: TaskConfig | None = None
+    run_async: bool = False  # if True: enqueue Celery, return immediately with task in RUNNING
 
 
 class TaskDetail(BaseModel):
     task: Task
     runs: list[PhaseRun]
+
+
+def _enqueue_celery(task_id: str) -> str | None:
+    """Try to enqueue a Celery task; return the celery task id, or None if Celery
+    is unavailable / not configured. Sync fallback is up to the caller."""
+    try:
+        from llmx_advocate.worker.tasks import run_task as celery_run_task  # noqa: PLC0415
+        result = celery_run_task.delay(task_id)
+        return result.id
+    except Exception:
+        return None
 
 
 @router.post("", response_model=TaskDetail)
@@ -51,6 +63,13 @@ async def create_task(req: CreateTaskRequest, session: AsyncSession = Depends(db
         source=req.source,
         config=req.config or TaskConfig(),
     )
+
+    if req.run_async and _enqueue_celery(task.id):
+        # Hand off to the worker; return the task in RUNNING state immediately.
+        runs = await repo.list_phase_runs(session, task.id)
+        return TaskDetail(task=task, runs=runs)
+
+    # Default path: drive the task synchronously inline.
     await run_task_until_blocked(session, get_engine(), task.id)
 
     final_task = await repo.get_task(session, task.id)
