@@ -1,0 +1,189 @@
+{
+  "export_formats": [
+    "landscape"
+  ],
+  "scenes": [
+    {
+      "scene_type": "cover",
+      "title": "2-bit量化MoE进入消费级的背后",
+      "subtitle": "稀疏模型红利与内存墙的拉锯战",
+      "duration_seconds": 3
+    },
+    {
+      "scene_type": "hook",
+      "main_text": "表面看是2-bit量化让MoE模型跑上消费级硬件，实则暴露稀疏模型的红利正被内存墙和路由开销吞噬。",
+      "duration_seconds": 17.3,
+      "tts_text": "表面看是2-bit量化让MoE模型跑上消费级硬件，实则暴露稀疏模型的红利正被内存墙和路由开销吞噬。"
+    },
+    {
+      "scene_type": "channel_intro",
+      "main_text": "LLM-X-Factors",
+      "sub_text": "拆解大语言模型时代的底层逻辑",
+      "duration_seconds": 15.4,
+      "tts_text": "大家好，这里是LLM-X-Factors，一个专注于拆解大语言模型时代底层逻辑的频道。"
+    },
+    {
+      "scene_type": "hook_support",
+      "title": "128GB内存需求与17 t/s速度",
+      "cards": [
+        "128GB内存 — 运行2-bit量化MoE模型的最低硬件需求",
+        "17 t/s → 21 t/s — M3 Max设备上优化前后的推理速度提升"
+      ],
+      "duration_seconds": 27.6,
+      "tts_text": "支撑这一判断的关键数据是：128GB内存成为运行2-bit量化MoE模型的最低硬件需求，而在M3 Max设备上，推理速度从17 token每秒提升至21 token每秒。"
+    },
+    {
+      "scene_type": "chapter_transition",
+      "chapter_number": 1,
+      "chapter_title": "量化认知的颠覆",
+      "duration_seconds": 15.4,
+      "tts_text": "让我们进入第一章：量化认知的颠覆。这里将揭示选择性2-bit量化如何打破行业常规认知。"
+    },
+    {
+      "scene_type": "content",
+      "title": "反直觉的性能表现",
+      "bullets": [
+        "2-bit量化MoE在128GB设备实现17 t/s推理速度",
+        "性能超越Qwen-3.6-27B等更大模型"
+      ],
+      "duration_seconds": 37.3,
+      "tts_text": "最令人惊讶的是，2-bit量化的MoE模型在128GB内存设备上实现了17 token每秒的推理速度，这一表现甚至超越了Qwen-3.6-27B等更大规模的模型。这种反直觉的结果直接挑战了'量化必然导致性能下降'的行业常规认知。"
+    },
+    {
+      "scene_type": "content",
+      "title": "选择性量化策略",
+      "bullets": [
+        "路由专家采用2-bit量化",
+        "共享专家保持Q8精度"
+      ],
+      "duration_seconds": 29.5,
+      "tts_text": "实现这一突破的关键在于选择性量化策略：对路由专家采用激进的2-bit量化，而对共享专家则保持Q8精度。这种混合精度方案在模型压缩率与质量之间取得了精妙平衡，是技术上的重要创新。"
+    },
+    {
+      "scene_type": "content",
+      "title": "Redis创始人的实验验证",
+      "visual": "antirez实验数据对比图",
+      "duration_seconds": 27.9,
+      "tts_text": "这一技术突破得到了Redis创始人antirez实验项目的验证。他在个人博客中详细记录了2-bit量化MoE模型在消费级硬件上的运行表现，为技术可行性提供了权威背书。"
+    },
+    {
+      "scene_type": "chapter_transition",
+      "chapter_number": 2,
+      "chapter_title": "硬件适配的争议",
+      "duration_seconds": 14.5,
+      "tts_text": "接下来进入第二章：硬件适配的争议。我们将探讨所谓'消费级可行区'背后的真实门槛。"
+    },
+    {
+      "scene_type": "content",
+      "title": "消费级定义的分歧",
+      "bullets": [
+        "86GB与128GB设备需求争议",
+        "评论区对'消费级'标准激烈辩论"
+      ],
+      "duration_seconds": 26.7,
+      "tts_text": "一个有趣的现象是，社区对'消费级可行区'的定义存在明显分歧。86GB与128GB设备需求的争议在评论区引发激烈辩论，这实际上暴露了稀疏模型硬件适配的根本难题。"
+    },
+    {
+      "scene_type": "content",
+      "title": "内存墙的制约",
+      "bullets": [
+        "KV Cache占用大量内存",
+        "路由开销抵消量化收益"
+      ],
+      "duration_seconds": 26.1,
+      "tts_text": "深入分析会发现，KV Cache占用了大量内存空间，而复杂的路由机制产生的开销部分抵消了量化带来的内存节省。这正是为什么稀疏模型的红利正在被侵蚀的关键原因。"
+    },
+    {
+      "scene_type": "content",
+      "title": "llama.cpp社区验证",
+      "visual": "开源社区测试数据",
+      "duration_seconds": 29.5,
+      "tts_text": "llama.cpp开源社区的技术验证进一步证实了这一现象。多位开发者报告称，在低于128GB内存的设备上运行该模型时，性能会出现显著下降，这与官方宣称的'消费级'体验存在差距。"
+    },
+    {
+      "scene_type": "chapter_transition",
+      "chapter_number": 3,
+      "chapter_title": "技术突破的本质",
+      "duration_seconds": 14.2,
+      "tts_text": "最后来到第三章：技术突破的本质。我们将揭示2-bit量化MoE成功的深层逻辑。"
+    },
+    {
+      "scene_type": "content",
+      "title": "模型规模与硬件极限",
+      "bullets": [
+        "MoE模型规模扩大至消费级硬件极限",
+        "问题现在暴露的时机原因"
+      ],
+      "duration_seconds": 23.9,
+      "tts_text": "为什么这个问题现在才暴露？因为MoE模型的规模已经扩大至消费级硬件的极限。当模型参数达到一定量级时，内存墙和路由开销的影响才会变得不可忽视。"
+    },
+    {
+      "scene_type": "content",
+      "title": "表面胜利与实质挑战",
+      "bullets": [
+        "2-bit量化的表象成功",
+        "内存墙问题的实质暴露"
+      ],
+      "duration_seconds": 27.3,
+      "tts_text": "2-bit量化让MoE模型跑上消费级硬件，表面看是技术胜利，实则暴露了更深层的问题：稀疏模型的效率红利正在被内存墙和路由开销吞噬。这是一种典型的'虚假突破'现象。"
+    },
+    {
+      "scene_type": "content",
+      "title": "用户真实体验",
+      "visual": "用户评论截图",
+      "duration_seconds": 26.4,
+      "tts_text": "多位用户反馈'第一次感觉前沿模型真正跑在了个人电脑上'，这种体验确实令人振奋。但技术专家指出，这种成功很大程度上依赖于特定硬件配置，距离真正的普及还有距离。"
+    },
+    {
+      "scene_type": "chapter_transition",
+      "chapter_number": 4,
+      "chapter_title": "行业影响与展望",
+      "duration_seconds": 11.7,
+      "tts_text": "额外增加第四章：行业影响与展望。让我们思考这一突破的长期意义。"
+    },
+    {
+      "scene_type": "content",
+      "title": "量化技术的新方向",
+      "bullets": [
+        "混合精度量化的潜力",
+        "路由算法的优化空间"
+      ],
+      "duration_seconds": 24.5,
+      "tts_text": "这一案例为量化技术指明了新方向：混合精度方案显示出巨大潜力，而路由算法的优化将成为下一阶段的关键突破点。行业需要重新思考稀疏模型的效率优化路径。"
+    },
+    {
+      "scene_type": "content",
+      "title": "硬件与软件的协同",
+      "bullets": [
+        "专用加速器的需求",
+        "软件栈的适配挑战"
+      ],
+      "duration_seconds": 25.1,
+      "tts_text": "更深层的启示在于硬件与软件的协同需求。要真正释放稀疏模型的潜力，可能需要专用加速器架构，同时软件栈也需要针对路由机制进行深度优化，这是一个系统工程。"
+    },
+    {
+      "scene_type": "content",
+      "title": "开源社区的角色",
+      "visual": "llama.cpp贡献者图表",
+      "duration_seconds": 23.9,
+      "tts_text": "值得注意的是，开源社区在这一过程中扮演了关键角色。从llama.cpp的技术验证到各种优化方案的探索，社区驱动的创新正在加速这一领域的发展。"
+    },
+    {
+      "scene_type": "summary",
+      "title": "核心结论回顾",
+      "bullets": [
+        "2-bit量化是表象，内存墙是实质",
+        "稀疏模型红利面临路由开销挑战",
+        "消费级体验仍有限制条件"
+      ],
+      "duration_seconds": 37.9,
+      "tts_text": "总结来看：2-bit量化让MoE模型跑上消费级硬件只是表象，实质是暴露了稀疏模型红利正被内存墙和路由开销吞噬的现实。虽然技术突破值得肯定，但所谓的消费级体验仍有严格的硬件限制条件。这一案例深刻揭示了AI模型效率优化的复杂性与挑战。"
+    },
+    {
+      "scene_type": "outro",
+      "headline": "LLM-X-Factors",
+      "duration_seconds": 9.2,
+      "tts_text": "这里是LLM-X-Factors，我们下期见。"
+    }
+  ]
+}

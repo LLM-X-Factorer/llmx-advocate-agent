@@ -187,17 +187,20 @@ llmx eval batch --source=<pack> --models=deepseek/deepseek-chat,deepseek/deepsee
 | Web 只读详情页（V0.2） | 🚧 |
 | P0 选题预诊断 / P7 商业化对齐 | 🚧 V0.3 之后 |
 
-**🎉 9 phase 全部实现 + Celery 接入 + A/B 评测脚手架。** 测试：185/185 通过。
+**🎉 V0.1 完整闭环：真实 scout pack（reddit DeepSeek-v4 inference）经 9 phase 全栈跑通到 COMPLETED**，3.5 分钟产出 22 scenes / 8.2 分钟 B 站视频 JSON + 3 个标题选项 + 简介 + 章节时间戳。golden 输出存档在 `tests/golden/scout-deepseek-v4-pack-video.json`。
+
+测试：188/188 通过。
 
 ## 路线图
 
 - [x] V0.0 规格 + 架构评审 + 项目骨架
-- [x] V0.1 OpenRouter 接入 + LLM 抽象层验证（DeepSeek-chat / R1 / V4-Pro / Ling-1T）
+- [x] V0.1 OpenRouter 接入 + LLM 抽象层验证（DeepSeek-chat / R1 / V4-Pro / V4-Flash / Ling-1T）
 - [x] V0.1 P1 → P6 业务全部实现
 - [x] V0.1 P4 suspense_first 风格 5 项 judge gate
 - [x] V0.1 Celery 异步任务（opt-in via `run_async=true`）
 - [x] V0.1 评测脚手架（task fork / eval compare / eval batch）
-- [ ] V0.1 真实端到端 smoke（已部分跑通 P1-P3；P2.5 受 Ling-1T 裁判过严限制，待切付费裁判模型）
+- [x] V0.1 真实端到端 smoke（scout pack → 9 phase → COMPLETED，3.5 min，golden 输出已存档）
+- [x] scout-agent v0.1 schema 同步（接受所有 scout-real 产出）
 - [ ] V0.2 只读 Web 详情页
 - [ ] V0.3 P0 选题预诊断 / P7 商业化对齐
 - [ ] V1.0 对外开放

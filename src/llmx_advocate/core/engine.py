@@ -201,6 +201,36 @@ async def run_task_until_blocked(
         except Exception as e:
             import traceback
             last_error = f"{type(e).__name__}: {e}"
+            duration_ms = int((time.perf_counter() - t0) * 1000)
+            error_output = {
+                "_error": last_error,
+                "_traceback": traceback.format_exc()[-2000:],
+            }
+
+            # Generation-side exceptions (JSON parse / network blips / OpenRouter
+            # transient failures) are recoverable — retry within the phase's budget
+            # before giving up. Only block-and-fail when retries are exhausted; even
+            # then, hand off to fallback if the phase has one (same as qa_failed_terminal).
+            if attempt < max_retries:
+                await _save_run(
+                    session,
+                    task_id=task_id,
+                    phase_id=phase_id,
+                    attempt=attempt,
+                    provider=task.config.llm_provider,
+                    model=task.config.llm_model,
+                    output=error_output,
+                    qa=None,
+                    status=PhaseRunStatus.ERROR,
+                    started=started,
+                    duration_ms=duration_ms,
+                )
+                runs_executed += 1
+                continue
+
+            # Retry budget exhausted on a generation exception — same fallback rules
+            # as qa_failed_terminal so a transient error doesn't trump the SOP's
+            # cycle structure (e.g. P2.5 → P1.5 to try a fresh angle).
             await _save_run(
                 session,
                 task_id=task_id,
@@ -208,17 +238,19 @@ async def run_task_until_blocked(
                 attempt=attempt,
                 provider=task.config.llm_provider,
                 model=task.config.llm_model,
-                output={
-                    "_error": last_error,
-                    "_traceback": traceback.format_exc()[-2000:],
-                },
+                output=error_output,
                 qa=None,
                 status=PhaseRunStatus.ERROR,
                 started=started,
-                duration_ms=int((time.perf_counter() - t0) * 1000),
+                duration_ms=duration_ms,
             )
-            await repo.update_task_status(session, task_id, status=TaskStatus.FAILED, current_phase=phase_id)
-            return RunOutcome(runs_executed + 1, TaskStatus.FAILED, phase_id, last_error=last_error)
+            runs_executed += 1
+            fallback = engine.fallback_for(phase_id)
+            if fallback is None:
+                await repo.update_task_status(session, task_id, status=TaskStatus.FAILED, current_phase=phase_id)
+                return RunOutcome(runs_executed, TaskStatus.FAILED, phase_id, last_error=last_error)
+            await repo.update_task_status(session, task_id, status=TaskStatus.RUNNING, current_phase=fallback)
+            continue
 
         qa: QAResult = await phase.qa(output, ctx)
         duration_ms = int((time.perf_counter() - t0) * 1000)

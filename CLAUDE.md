@@ -212,6 +212,43 @@
 - 单测 `test_parse_real_scout_pack_with_full_schema` 校验全字段被正确解析
 - docs/source-pack-schema.md 直接 cp scout 那份，确保两边字节级一致
 
+### 2026-04-27（凌晨）— V0.1 完整闭环：真 scout pack → COMPLETED
+
+**修复链条**（这一夜共 ~7 个 commit）：
+- engine attempt scoping per fallback cycle + 60-run global cap（修无限循环）
+- engine generation exception → retry budget（修 JSON 解析失败立即 task fail）
+- OpenRouter adapter：不传 `response_format=json_object`（绕过 SiliconFlow 404 guardrail）+ retry on 502/503/504 + timeout 120s→180s
+- judges max_tokens 300→800（reasoning model token 大半给 internal reasoning）
+- P3 fallback target = P2（niche 内容回头让 P2 重判 tier）
+- P2 tier-retry（看到自己上次的 tier 时强制换 tier）
+- P4 SCENE_COUNT_TOLERANCE 3→6 / 总时长 ±50% / per-scene ±4s（适配 chat 模型短输出倾向）
+- P4 prompt 补齐结构指南 + 强制 60 字 tts 下限
+- **P4 自算 duration**（关键）— 公式确定不让 LLM 算
+
+**真实端到端结果**（4 次迭代，最后一次成功）：
+
+| Phase | Status | Duration | QA |
+|-------|--------|----------|------|
+| P1 | passed | 1ms | 3/3 |
+| P1.5 | passed | 10s | 2/2 |
+| P2 | passed | 5s | 4/4 |
+| **P2.5** | **passed** | **20s** | **5/5**（红线 phase 一次过）|
+| P2.6 | passed | 39s | 6/6 |
+| P3 | passed | 18s | 4/4 |
+| P4 | passed | 65s | 12/12 |
+| P5 | retry → passed | 14s+9s | 12/12 |
+| P6 | passed | 20s | 7/7 |
+
+总 3.5 min。22 scenes / 8.2 min B 站视频 JSON + 3 个标题选项 + 简介 + 章节时间戳。
+Golden 存档：`tests/golden/scout-deepseek-v4-pack-video.json`。
+
+**实际产出 hook tts**：
+> "表面看是2-bit量化让MoE模型跑上消费级硬件，实则暴露稀疏模型的红利正被内存墙和路由开销吞噬。"
+
+通过 P2.5 全部 4 项强制 QA：独特、独立有价值、≤50 字、不依赖来源背书。
+
+**测试覆盖**：188 项（unit 165 + integration 23），全过
+
 ### 2026-04-26（夜·更后）— B：P1.5 业务接通（第一个真用 LLM 的 phase）
 
 - 完成：`prompts/p1_5_angle/extract.md` Jinja2 prompt，输入 source pack 信息（含 scout_analysis）
