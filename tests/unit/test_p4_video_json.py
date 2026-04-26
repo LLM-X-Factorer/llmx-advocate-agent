@@ -139,10 +139,12 @@ def _good_scenes() -> list[dict]:
         ),
     ]
     # Fill to 24 scenes with content + chapter_transitions.
+    # Avoid 第一/第二/第三 enumeration here — too many scenes accumulate enum groups
+    # and trip P5_no_mechanical_enumeration when this fixture is reused by P5 tests.
     long_content_tts = (
-        "这一段我们讲核心发现。数据支撑这个观点的具体含义是什么？"
-        "我们从三个角度来看：第一个是数据本身的规模；第二个是其反映的趋势；"
-        "第三个是它对从业者的现实启示。每一点都值得展开来讲。"
+        "这一段我们讲核心发现。数据支撑这个观点的具体含义在于哪里？"
+        "可以从规模、趋势与现实启示这几个角度切入，把背后的逻辑铺开。"
+        "每个角度都对从业者有现实意义，值得展开来讲清楚。"
     )
     for i in range(19):
         if i % 5 == 0:

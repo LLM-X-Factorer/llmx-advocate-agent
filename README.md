@@ -183,14 +183,14 @@ llmx eval batch --source=<src> --models=claude-opus-4-7,deepseek/deepseek-v4-pro
 | **P2.6** Cognitive Deepening（4 项 Depth Test） | ✅ |
 | **P3** Core Information Extraction（5 维素材丰富度门） | ✅ |
 | **P4** Video JSON Generation（共同 6 红线 + judgment_first 分叉 + 结构校验） | ✅（suspense_first 5 项 judge gate 待 V0.2） |
-| **P5** JSON Self-Check / TTS-Visual sync | ⏳ 下一个 |
-| P6 | 🚧 stub，待实现 |
+| **P5** JSON Self-Check（6 条 TTS-Visual 同步 + 5 项 anti-AI 味 + 结构完整性） | ✅ |
+| **P6** Auxiliary Output（标题 / 简介 / 时间戳） | ⏳ 下一个 |
 | Celery worker 接入（M2.3） | 🚧 当前 API 同步跑 |
 | 评测脚手架（task fork / eval compare） | 🚧 |
 | Web 只读详情页（V0.2） | 🚧 |
 | P0 选题预诊断 / P7 商业化对齐 | 🚧 V0.3 之后 |
 
-测试：133/133 通过。
+测试：155/155 通过。
 
 ## 路线图
 

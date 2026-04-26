@@ -97,13 +97,14 @@
 - ✅ 完成：**P2.6** Cognitive Deepening（三轮追问 + 4 项 Depth Test + theme 字段）
 - ✅ 完成：**P3** Core Information Extraction（5 维素材丰富度 + findings 数量约束 + 选题受众面）
 - ✅ 完成：**P4** Video JSON Generation（共同 6 红线 + judgment_first 3 项 + 结构校验；suspense_first 5 项 judge gate 待 V0.2）
-- ❌ 未开始：P5 / P6
+- ✅ 完成：**P5** JSON Self-Check（6 条 TTS-Visual 同步 + 5 项 anti-AI 味 + 结构完整性 + duration 公式 sanity）
+- ❌ 未开始：P6
 - ❌ 未开始：Celery worker 真接入（M2.3）—— 当前 API 同步跑
 - ❌ 未开始：评测脚手架（task fork / eval compare）
 
-**测试覆盖**：133 项（unit 120 + integration 13），全过。Lint 干净。
+**测试覆盖**：155 项（unit 142 + integration 13），全过。Lint 干净。
 
-**下一步**：P5 — JSON Self-Check（schema 校验 + 6 条 TTS-Visual 同步 + anti-AI 味检测）。
+**下一步**：P6 — Auxiliary Output（标题 2-3 选项 / 视频简介 / 时间戳）。
 
 ---
 
@@ -298,6 +299,26 @@
 - 决定：`P4_jf_judgment_within_15s` 用 char-overlap ≥40% 作启发式（直接 substring 太脆，judge LLM 太贵）；rationale 记录 overlap_ratio
 - 决定：duration 容差 ±3s/scene，总时长 ±30%；scene 数 ±3。这些容差可在 V0.2 调
 - 测试覆盖：133 项（unit 120 + integration 13），全过
+
+### 2026-04-27 — P5 业务接通（JSON Self-Check）
+
+- 完成：`prompts/p5_self_check/judges.md` — 3 项 judge：sync_one_focus / sync_continuity / public_verifiable_language
+- 完成：`P5SelfCheck.run()` — **不调生成 LLM**，只产出 ValidationReport（汇总：syntax_ok / sync_warnings / duration_total / tts_total_chars / scene_type_distribution）
+- 完成：`P5SelfCheck.qa()` — **12 个 gate** 三类：
+  - 6 条 TTS-Visual 同步规则（spec §5.4.3）：
+    - rule：`P5_sync_visual_priority` / `P5_sync_card_split` / `P5_sync_duration_cap`
+    - judge：`P5_sync_one_focus`（单卡 visual + 多列举 tts → 触发裁判，仅 worst offender 调 1 次）/ `P5_sync_continuity`（采样中段 3 个连续 scene）
+  - 结构（spec §5.4.4）：`P5_structure_has_outro`（末尾必须 outro 含 "我们下期见"）/ `P5_per_scene_duration_strict`（公式 sanity，与 P4 重复但提供独立证据）
+  - 5 项 anti-AI 味（spec §5.5）：
+    - rule：`P5_no_emoji_stack`（cover/章节/outro 例外）/ `P5_no_parallel_bold_blocks` / `P5_no_mechanical_enumeration`（"第一/第二/第三"全片 ≤ 2 组）/ `P5_no_imperative_filler`
+    - judge：`P5_public_verifiable_language`（采样 ≤ 2000 字）
+- 完成：fallback = P4 — JSON 结构问题不在 P5 修，让 P4 重新生成
+- 完成：22 项 P5 单测（含 _good_scenes fixture 复用 P4 的，已修 enumeration 累积问题）+ 集成测试更新（卡 P6 stub）
+- 决定：sync_one_focus 不全量裁判每个 scene（成本不可控）— 先用规则启发式（单卡 visual + 多 enum）筛选，仅对最严重的一个 scene 跑 judge
+- 决定：sync_continuity 仅采样中段 3 个连续 scene 跑 1 次 judge
+- 决定：emoji 检测扩展 unicode 范围到 0x2B00-0x2BFF（覆盖 ⭐ U+2B50）+ 0x1F680-0x1F6FF（火箭等）
+- 决定：duration cap warning 检查独立于 visual 字段（不能因为 visual=None 就跳过）
+- 测试覆盖：155 项（unit 142 + integration 13），全过
 
 ---
 

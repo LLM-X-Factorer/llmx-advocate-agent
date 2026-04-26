@@ -99,14 +99,15 @@ def mock_llm(monkeypatch):
         },
     )
 
-    # Build a video JSON that satisfies P4 gates against the mock LayerProfile
-    # (tier=留存, target_duration=600s, target_scene_count=24).
+    # Build a video JSON that satisfies P4 + P5 gates against the mock LayerProfile
+    # (tier=留存, target_duration=600s, target_scene_count=24). Avoid 第一/第二/第三
+    # enumeration here so P5_no_mechanical_enumeration stays under the 2-group cap.
     def _video_scenes() -> list[dict]:
         from llmx_advocate.core.qa.rules import expected_duration
         long_tts = (
-            "这一段我们讲核心发现。数据支撑这个观点的具体含义是什么？"
-            "我们从三个角度来看：第一个是数据本身的规模；第二个是其反映的趋势；"
-            "第三个是它对从业者的现实启示。每一点都值得展开来讲。"
+            "这一段我们讲核心发现。数据支撑这个观点的具体含义在于哪里？"
+            "可以从规模、趋势与现实启示这几个角度切入，把背后的逻辑铺开。"
+            "每个角度都对从业者有现实意义，值得展开来讲清楚。"
         )
         scenes = [
             {"scene_type": "cover", "title": "封面", "duration_seconds": 3},
