@@ -1,0 +1,18 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$comment": "PLACEHOLDER. The authoritative schema is in docs/source-skill/extracted/chinese-content-workflow/resources/VIDEO_JSON_REFERENCE.md (the draft-07 schema in the bottom section). When wiring P5, copy that schema here verbatim — keep this file as the single source of truth.",
+  "type": "object",
+  "required": ["scenes"],
+  "properties": {
+    "export_formats": {
+      "type": "array",
+      "items": { "enum": ["landscape", "portrait", "square"] },
+      "default": ["landscape"]
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "object", "required": ["scene_type"] }
+    }
+  }
+}
