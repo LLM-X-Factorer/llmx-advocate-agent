@@ -19,10 +19,11 @@ class Settings(BaseSettings):
     llmx_default_model: str = "deepseek/deepseek-chat"
 
     # Judge LLM is FIXED at the engine layer to keep QA semantics stable across
-    # generation-side A/B tests. V0.1 uses Ling 2.6 1T (OpenRouter free tier) because
-    # we don't have an Anthropic API key yet; switch to claude-opus-4-7 once available.
+    # generation-side A/B tests. V0.1 uses DeepSeek V4 Pro (reasoning, Chinese-strong)
+    # because no Anthropic key is available; the free Ling 2.6 1T was too strict on
+    # P2.5_anti_relay_judge. Switch to claude-opus-4-7 if/when an Anthropic key lands.
     llmx_judge_provider: str = "openrouter"
-    llmx_judge_model: str = "inclusionai/ling-2.6-1t:free"
+    llmx_judge_model: str = "deepseek/deepseek-v4-pro"
 
     postgres_host: str = "localhost"
     postgres_port: int = 5432

@@ -194,6 +194,24 @@
 - 决定：脚本接受 `--providers` 子集，便于单独 debug 某个 provider
 - 安全提示已记录：OpenRouter key 在早期评审聊天里暴露，用户后续会 revoke + 重新生成。新 key 写入本地 `.env`（gitignored）即可。**任何 commit / 文档都不要含真实 key 的任何片段**
 
+### 2026-04-27（夜·更后）— 切裁判到 v4-pro + scout-agent schema 同步
+
+- **裁判 LLM 切换**：`inclusionai/ling-2.6-1t:free` → `deepseek/deepseek-v4-pro`
+  - 用户没有 Anthropic key；Ling-1T-free 在 P2.5_anti_relay_judge 上反复打回（裁判过严）
+  - 选 v4-pro 因为它 (1) reasoning 模型、二值判断更可靠 (2) 中文一流 (3) 已在 verify_llm 验证可用
+  - judges.py max_tokens 从 300 提到 800 — reasoning 模型大半 token 用于内部 reasoning，300 太紧导致 JSON 截断
+- **scout-agent schema 同步**：`llmx-scout-agent` v0.1 已发布；schema 比初版多了几段：
+  - `source.language` (ISO 639-1)
+  - `metrics.x_reposts`（scout 规范名，我们保留 `x_replies` 兼容）
+  - `controversy_signals[].url`、`scout_analysis.notes`
+  - `harvest` 段：harvested_at / fulltext_extracted / fulltext_method / external_file / comments_count_fetched / warnings
+  - `suggested_layer` 加 `unsure` — 我们改为 free string 不强 enum
+  - `source.platform` 加 `product_hunt / zhihu / weibo`
+- **SourcePack model 升级**：scout-facing model 全部设 `extra="allow"`，未来 scout 加字段不破坏 ingestion
+- **真 scout pack fixture**：`tests/fixtures/example-pack/scout-real-deepseek-v4.md` 直接从 scout `output/packs/2026-04-26/` 拷的真实产出
+- 单测 `test_parse_real_scout_pack_with_full_schema` 校验全字段被正确解析
+- docs/source-pack-schema.md 直接 cp scout 那份，确保两边字节级一致
+
 ### 2026-04-26（夜·更后）— B：P1.5 业务接通（第一个真用 LLM 的 phase）
 
 - 完成：`prompts/p1_5_angle/extract.md` Jinja2 prompt，输入 source pack 信息（含 scout_analysis）

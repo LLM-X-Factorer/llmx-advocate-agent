@@ -45,7 +45,7 @@ def _enqueue_celery(task_id: str) -> str | None:
     """Try to enqueue a Celery task; return the celery task id, or None if Celery
     is unavailable / not configured. Sync fallback is up to the caller."""
     try:
-        from llmx_advocate.worker.tasks import run_task as celery_run_task  # noqa: PLC0415
+        from llmx_advocate.worker.tasks import run_task as celery_run_task
         result = celery_run_task.delay(task_id)
         return result.id
     except Exception:

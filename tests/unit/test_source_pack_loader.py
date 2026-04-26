@@ -46,6 +46,23 @@ def test_parse_scout_pack_fixture():
     assert pack.metrics.hn_score == 423
 
 
+def test_parse_real_scout_pack_with_full_schema():
+    """Real scout-agent v0.1 output — exercises every optional field including
+    harvest, language, x_reposts, controversy_signal.url, notes."""
+    pack = parse_file(FIXTURES / "scout-real-deepseek-v4.md")
+    assert pack.created_by.startswith("llmx-scout-agent")
+    assert pack.source.language == "en"
+    assert pack.source.platform == "reddit"
+    assert pack.scout_analysis is not None
+    assert pack.scout_analysis.judgment_seed
+    assert pack.scout_analysis.suggested_layer == "留存层"
+    assert pack.scout_analysis.controversy_signals
+    assert pack.scout_analysis.controversy_signals[0].url is not None
+    assert pack.harvest is not None
+    assert pack.harvest.fulltext_extracted is True
+    assert pack.harvest.fulltext_method == "api"
+
+
 def test_invalid_yaml_raises():
     text = "---\nfoo: : : :\n---\nbody"
     with pytest.raises(InvalidSourcePackError, match="YAML"):

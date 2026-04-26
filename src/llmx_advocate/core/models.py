@@ -80,15 +80,29 @@ class SourceInput(BaseModel):
 
 
 # === Source Pack frontmatter (matches docs/source-pack-schema.md §3) ===
+# All scout-facing models accept extra fields (extra="allow") so additions on
+# scout's side don't break ingestion before the contract bumps.
 class SourcePackSourceMeta(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     platform: Literal[
-        "hacker_news", "github", "reddit", "x", "producthunt", "manual", "other"
+        "hacker_news",
+        "github",
+        "reddit",
+        "x",
+        "producthunt",
+        "product_hunt",
+        "zhihu",
+        "weibo",
+        "manual",
+        "other",
     ]
     primary_url: str
     original_url: str | None = None
     title: str
     author: str | None = None
     published_at: datetime | None = None
+    language: str | None = None  # ISO 639-1
 
 
 class SourcePackMetrics(BaseModel):
@@ -101,21 +115,43 @@ class SourcePackMetrics(BaseModel):
     reddit_upvotes: int | None = None
     reddit_comments: int | None = None
     x_likes: int | None = None
-    x_replies: int | None = None
+    x_replies: int | None = None  # legacy alias
+    x_reposts: int | None = None  # scout canonical name
 
 
 class ControversySignal(BaseModel):
-    type: str
+    model_config = ConfigDict(extra="allow")
+
+    type: str  # controversy / counterintuitive_data / underdog_story / practical_contradiction / expert_disagreement / other
     evidence: str
+    url: str | None = None
 
 
 class ScoutAnalysis(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
     matched_keywords: list[str] = Field(default_factory=list)
     llm_score: float | None = None
     llm_reasoning: str | None = None
     judgment_seed: str | None = None
-    suggested_layer: Tier | None = None
+    # scout uses '引流层 / 留存层 / 转化层 / unsure'. Kept as free string so we don't
+    # have to bump Tier when scout adds new values; P2 advocate-side judges anyway.
+    suggested_layer: str | None = None
     controversy_signals: list[ControversySignal] = Field(default_factory=list)
+    notes: str | None = None
+
+
+class HarvestMetadata(BaseModel):
+    """Metadata about scout's collection process. Optional — manual packs omit it."""
+
+    model_config = ConfigDict(extra="allow")
+
+    harvested_at: datetime | None = None
+    fulltext_extracted: bool | None = None
+    fulltext_method: str | None = None
+    fulltext_external_file: str | None = None
+    comments_count_fetched: int | None = None
+    warnings: list[str] = Field(default_factory=list)
 
 
 class SourcePack(BaseModel):
@@ -123,7 +159,12 @@ class SourcePack(BaseModel):
 
     Constructed by P1 from a frontmatter+body file. judgment_seed (if present) is a
     *gift* to P2.5, not a command — see spec §6 and prompts/p2_5_judgment/extract.md.
+
+    Schema authority lives in docs/source-pack-schema.md, kept in sync with the
+    identical file in llmx-scout-agent.
     """
+
+    model_config = ConfigDict(extra="allow")
 
     schema_version: Literal["1.0"]
     pack_id: str
@@ -133,6 +174,7 @@ class SourcePack(BaseModel):
     source: SourcePackSourceMeta
     metrics: SourcePackMetrics = Field(default_factory=SourcePackMetrics)
     scout_analysis: ScoutAnalysis | None = None
+    harvest: HarvestMetadata | None = None
 
     body_markdown: str  # the full markdown body below the frontmatter
 

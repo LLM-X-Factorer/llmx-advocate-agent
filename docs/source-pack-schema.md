@@ -1,61 +1,42 @@
-# Source Pack Schema v1.0
+# Source Pack Schema
 
-> **本文档是 `llmx-scout-agent` ⟷ `llmx-advocate-agent` 之间的接口契约**。
->
-> 任何 schema 变更必须**同步两边**：在两个 repo 里 commit 完全一致的副本，CI 跑 hash 比对（见 §6）。
-> 当前只有 advocate-agent 项目存在；scout-agent 启动时，把本文件 cp 过去作为对方的契约副本。
+> 这份文件是 `llmx-scout-agent`（生产者）和 `llmx-advocate-agent`（消费者）之间的接口契约。
+> 两个项目仓库各保留一份完全相同的副本。任何变更必须走双向 PR 同步。
 
-## 1. 设计哲学
+## 设计原则
 
-- **文件即契约**：上游产物是一个完整、自洽的 markdown 文件；下游不再做网络抓取。
-- **人类可手写**：scout 缺位时，LE PPW 可以手工写一个符合 schema 的 pack 直接喂下游。
-- **schema 演进可见**：所有变更走 PR + 双向同步，禁止隐式漂移。
+1. **人类可读可写**：Markdown + YAML frontmatter，git diff 友好，必要时手工编辑可行
+2. **LLM 处理友好**：结构清晰、字段语义明确，下游 LLM 不需要复杂解析
+3. **自包含**：消费方不应需要回到原始 URL 重新抓取
+4. **可演进**：`schema_version` 字段支持平滑升级
+5. **失败优于撒谎**：能拿到就完整拿到，拿不到就显式 `null`，禁止脑补
 
-## 2. 文件格式
+## 文件存储约定
 
-**Markdown + YAML frontmatter**。文件扩展名 `.md`。
+- **路径**：`output/packs/YYYY-MM-DD/<slug>.md`
+- **命名**：日期 + 短 slug（如 `rag-vs-agent-debate.md`），slug 由标题截断+连字符化
+- **编码**：UTF-8，LF 行尾
+- **大小**：单文件建议 < 200KB；超长原文做摘要 + 关键章节保留，整文存到同目录的 `<slug>.fulltext.md`
 
-```
+## 完整 Schema（v1.0）
+
+```markdown
 ---
-{ YAML frontmatter (machine-readable metadata) }
----
+schema_version: "1.0"
+pack_id: "hn-2026-04-26-43891234"        # 全局唯一 ID
+created_at: "2026-04-26T10:30:00+08:00"  # ISO 8601 带时区
+created_by: "llmx-scout-agent@0.1.0"     # 工具名@版本，手工产出用 "manual"
 
-# {pack title}
+source:
+  platform: "hacker_news"                # 见下方枚举
+  primary_url: "https://news.ycombinator.com/item?id=43891234"  # 讨论入口
+  original_url: "https://example.com/blog/rag-is-dead"          # 真正的内容源（可与 primary 相同）
+  title: "RAG is dead, long live agents"
+  author: "alice"                        # 作者署名，未知填 null
+  published_at: "2026-04-25T14:00:00Z"   # 原文发布时间，未知填 null
+  language: "en"                         # ISO 639-1
 
-{ markdown body — 来源元信息、原文正文、评论精华、相关讨论 }
-```
-
-frontmatter 是机器读的（schema 校验在此），body 是人 + LLM 都读的。
-
-## 3. Frontmatter 字段
-
-### 3.1 顶层
-
-| 字段 | 必需 | 类型 | 说明 |
-|------|------|------|------|
-| `schema_version` | ✅ | string | 当前为 `"1.0"`。下游会校验版本兼容 |
-| `pack_id` | ✅ | string | 唯一 ID，建议格式 `<source>-<date>-<external_id>` |
-| `created_at` | ✅ | ISO 8601 | 含时区 |
-| `created_by` | ✅ | string | `llmx-scout-agent@<version>` 或 `manual` |
-| `source` | ✅ | object | 见 §3.2 |
-| `metrics` | 可选 | object | 见 §3.3，按平台填写已有指标 |
-| `scout_analysis` | 可选 | object | 见 §3.4。**手工 pack 可省略整段**；scout 产出必含 |
-
-### 3.2 `source`
-
-| 字段 | 必需 | 说明 |
-|------|------|------|
-| `platform` | ✅ | 枚举：`hacker_news` / `github` / `reddit` / `x` / `producthunt` / `manual` / `other` |
-| `primary_url` | ✅ | scout 抓取的入口 URL（HN 帖子 URL / GitHub trending 页 / 自己的笔记链接等） |
-| `original_url` | 可选 | 原文 URL（如果 primary_url 是讨论站点） |
-| `title` | ✅ | 原文标题 |
-| `author` | 可选 | 作者名 |
-| `published_at` | 可选 | ISO 8601 |
-
-### 3.3 `metrics`（按平台按需填写）
-
-```yaml
-metrics:
+metrics:                                 # 各平台按需填写，未采集到的填 null
   hn_score: 423
   hn_comments: 187
   github_stars: null
@@ -63,97 +44,113 @@ metrics:
   reddit_upvotes: null
   reddit_comments: null
   x_likes: null
-  x_replies: null
-```
+  x_reposts: null
 
-### 3.4 `scout_analysis`（scout 产出 / 手工可省）
-
-| 字段 | 必需（如果整段存在） | 说明 |
-|------|------|------|
-| `matched_keywords` | 可选 | 关键词初筛命中的词列表 |
-| `llm_score` | 可选 | scout LLM 评分 0-10 |
-| `llm_reasoning` | 可选 | 评分理由 |
-| `judgment_seed` | 可选 | ⭐ 一句话种子判断（"表面 X，但其实 Y"格式）。**advocate Phase 2.5 可推翻** |
-| `suggested_layer` | 可选 | `引流` / `留存` / `转化`（与 advocate 内部 Tier 枚举对齐，**不带"层"字**） |
-| `controversy_signals` | 可选 | list of {type, evidence}，对应 chinese-workflow Phase 1.5 高互动信号 |
-
-### 3.5 完整 frontmatter 示例
-
-```yaml
----
-schema_version: "1.0"
-pack_id: "hn-2026-04-26-43891234"
-created_at: "2026-04-26T10:30:00+08:00"
-created_by: "llmx-scout-agent@0.1.0"
-
-source:
-  platform: "hacker_news"
-  primary_url: "https://news.ycombinator.com/item?id=43891234"
-  original_url: "https://example.com/blog/rag-is-dead"
-  title: "RAG is dead, long live agents"
-  author: "alice"
-  published_at: "2026-04-25T14:00:00Z"
-
-metrics:
-  hn_score: 423
-  hn_comments: 187
-
-scout_analysis:
+scout_analysis:                          # scout 的预判，下游可参考也可推翻
   matched_keywords: ["RAG", "agent", "retrieval"]
-  llm_score: 8.5
+  llm_score: 8.5                         # 0-10
   llm_reasoning: "评论区围绕『RAG 是否被 agent 取代』有明确分裂..."
   judgment_seed: "表面是 RAG 被 agent 取代，实则是检索范式从『一次性召回』转向『迭代式探索』"
-  suggested_layer: "留存"
-  controversy_signals:
-    - type: "expert_disagreement"
+  suggested_layer: "留存层"               # 引流层 | 留存层 | 转化层 | unsure
+  controversy_signals:                   # 对应 SKILL.md Phase 1.5 的高互动信号
+    - type: "expert_disagreement"        # 见下方枚举
       evidence: "Andrej K. 与 Jerry Liu 在 X 上观点对立"
+      url: "https://x.com/karpathy/status/..."  # 可选
+  notes: null                            # scout 的额外备注，可选
+
+harvest:                                 # 抓取过程的元数据
+  harvested_at: "2026-04-26T10:25:00+08:00"
+  fulltext_extracted: true               # 原文是否成功 markdown 化
+  fulltext_method: "trafilatura"         # trafilatura | readability | playwright | manual
+  fulltext_external_file: null           # 若过长另存，填相对路径如 "rag-vs-agent-debate.fulltext.md"
+  comments_count_fetched: 5              # 实际抓取的评论数
+  warnings: []                           # 抓取过程中的告警，如 "paywall detected"
 ---
+
+# RAG is dead, long live agents
+
+## 来源元信息
+
+- **平台**：Hacker News（[HN-43891234](https://news.ycombinator.com/item?id=43891234)）
+- **原文**：[example.com/blog/rag-is-dead](https://example.com/blog/rag-is-dead)
+- **作者**：alice · 2026-04-25
+- **热度**：423 分 / 187 评论
+
+## Scout 的预判
+
+> ⚠️ 以下为 scout 阶段的初步判断，下游 advocate-agent 应当校验、深化或推翻，不可直接采用。
+
+**判断种子**：表面是 RAG 被 agent 取代，实则是检索范式从「一次性召回」转向「迭代式探索」
+
+**建议层级**：留存层
+
+**争议信号**：
+- 专家分歧：Andrej K. 与 Jerry Liu 在 X 上观点对立
+
+## 原文正文
+
+[完整 markdown 化后的原文。如过长，此处放摘要 + 关键章节，完整版见 fulltext_external_file]
+
+## 评论区精华
+
+> Top N by score，保留作者、分数、原文 markdown
+
+### @user1（234 分）
+[评论内容]
+
+### @user2（189 分）
+[评论内容]
+
+## 相关讨论（可选）
+
+- [r/LocalLLaMA 讨论帖](https://...) — 一句话总结
+- [Twitter thread by @karpathy](https://...) — 一句话总结
 ```
 
-## 4. Body 结构（推荐章节）
+## 字段枚举
 
-body 是 markdown 自由文本，但下游 advocate-agent 期望以下章节存在（章节标题用 `## ` 二级标题）：
+### `source.platform`
+`hacker_news` | `github` | `reddit` | `x` | `product_hunt` | `zhihu` | `weibo` | `manual` | `other`
 
-- `## 来源元信息` — 来源、热度、作者等的人话总结
-- `## 原文正文` — 完整 markdown 化的原文
-- `## 评论区精华` — Top 5 高分评论
-- `## 相关讨论` — 跨平台交叉引用（可选）
+### `scout_analysis.suggested_layer`
+`引流层` | `留存层` | `转化层` | `unsure`
 
-**advocate-agent 不强制要求章节标题完全一致**——只要 body 包含可识别的"原文正文"段落即可。但 scout-agent 应严格按照上述章节产出。
+### `scout_analysis.controversy_signals[].type`
+`controversy` | `counterintuitive_data` | `underdog_story` | `practical_contradiction` | `expert_disagreement` | `other`
 
-## 5. judgment_seed 的语义边界（CRITICAL）
+（对应 SKILL.md Phase 1.5 的高互动信号矩阵）
 
-> **种子是礼物，不是命令。**
+### `harvest.fulltext_method`
+`trafilatura` | `readability` | `playwright` | `api`（平台 API 直接给的正文） | `manual` | `failed`
 
-- scout 产出 `judgment_seed` 是给 advocate Phase 2.5 一个**起点**，不是终点
-- advocate Phase 2.5 必须能**推翻**种子（在 `Judgment` 输出中通过 `overrode_seed=true` + `override_reason` 显式记录）
-- 推翻后仍然必须通过 P2.5 的 4 项强制 QA（独特性 / 独立价值 / 简洁性 / 反搬运）
-- 即便 P2.5 沿用了种子（未推翻），4 项 QA 也照跑——避免 scout 出错时种子污染下游
+## 强制约束
 
-## 6. 双向同步纪律
+- 所有时间字段必须是 ISO 8601 带时区
+- `pack_id` 全局唯一，建议格式 `<platform>-<date>-<external_id>`
+- `scout_analysis.llm_score` 必须在 [0, 10] 区间
+- `metrics` 中至少一个字段非 null（否则 scout 没拿到任何热度信号，应该打回不打包）
+- 如果 `harvest.fulltext_extracted: false`，必须在 `harvest.warnings` 里写明原因
 
-两个 repo 里各放一份**完全一致**的本文件。变更流程：
+## 校验
 
-1. 在任一 repo 提 PR 改 schema
-2. PR 检查脚本（CI）会跑：
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/LLM-X-Factorer/llmx-<other>-agent/main/docs/source-pack-schema.md \
-     | sha256sum
-   sha256sum docs/source-pack-schema.md
-   ```
-   两个 hash 不一致 → CI 失败
-3. 同步 PR 合到另一边（hash 重新一致）后，本 PR 才能 merge
-4. 任何 schema_version 升级（次版本号或主版本号），同时改 schema_version 字段值
+两个项目都应实现 schema 校验：
+- scout：写文件**之前**校验，不通过不写盘
+- advocate：读文件**之后**校验，不通过拒绝进入 Phase 2
 
-> ⚠️ V0.1 仅有一个 repo，hash 比对脚本暂不启用；scout-agent 立项当天必须实施。
+推荐用 pydantic（Python）/ zod（TS）实现。schema 定义文件在两个项目里也保持同步。
 
-## 7. Pydantic 数据模型映射（advocate 侧）
+## 手工产出 source pack
 
-实现在 `src/llmx_advocate/core/models.py` 的 `SourcePack` 类。校验在 P1 phase 入口完成，不通过 → 任务直接 fail（不重试，因为是输入数据错）。
+下游 advocate-agent 的最重要属性之一是：**没有 scout 也能跑**。手工产出 pack 的最小要求：
 
-## 8. Schema 演进规则
+- `created_by: "manual"`
+- `scout_analysis` 整段可以省略大部分字段，但 `judgment_seed` 强烈建议手工填一句
+- `harvest.fulltext_method: "manual"`
 
-- 字段**只增不减**：旧字段标记 deprecated 至少保留 1 个 minor 版本
-- 任何字段必需性（required → optional 或反之）变更视为 **major** 版本
-- 增字段视为 **minor** 版本
-- pack 文件首行 `schema_version: "X.Y"`，下游按此选择校验 schema
+提供 `scout pack <url>` CLI 命令辅助手工产出（自动抓取，但 scout_analysis 留空让你填）。
+
+## 版本演进
+
+- 破坏性变更：`schema_version` 主版本号 +1（`1.0` → `2.0`），advocate 必须显式声明支持哪些主版本
+- 兼容性变更（加新可选字段）：次版本号 +1（`1.0` → `1.1`），双方继续工作
+- 任何变更都走 PR + 双仓库同步 commit

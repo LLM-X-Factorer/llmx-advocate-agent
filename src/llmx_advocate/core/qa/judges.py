@@ -31,7 +31,10 @@ async def judge(prompt: str) -> dict:
             messages=[{"role": "user", "content": prompt}],
             response_format="json",
             temperature=0.0,
-            max_tokens=300,
+            # 800 instead of 300 — reasoning judge models (e.g. deepseek-v4-pro)
+            # spend most of their budget on internal reasoning before emitting
+            # JSON; tight caps caused truncated bodies and false unparsable hits.
+            max_tokens=800,
         )
     )
     parsed = response.parsed_json or {"passed": False, "rationale": "judge response unparsable"}
