@@ -19,6 +19,7 @@ from llmx_advocate.core.qa.rules import (
     SOURCE_BACKING_BLACKLIST,
     char_count_chinese,
     contains_any,
+    count_cjk,
 )
 
 BODY_EXCERPT_MAX_CHARS = 5000
@@ -138,14 +139,14 @@ def _truncate(text: str, max_chars: int) -> str:
 
 
 def _gate_brevity(judgment: Judgment) -> QAGate:
-    n = char_count_chinese(judgment.full_sentence)
+    n = count_cjk(judgment.full_sentence)
     passed = n <= BREVITY_MAX_CHARS
     return QAGate(
         gate_id="P2.5_brevity",
-        name=f"判断 ≤ {BREVITY_MAX_CHARS} 字（≈15 秒口播）",
+        name=f"判断 ≤ {BREVITY_MAX_CHARS} 汉字（≈18 秒口播）",
         passed=passed,
-        rationale=f"full_sentence is {n} chars" if not passed else "ok",
-        evidence={"char_count": n, "limit": BREVITY_MAX_CHARS} if not passed else None,
+        rationale=f"full_sentence is {n} CJK chars" if not passed else "ok",
+        evidence={"cjk_char_count": n, "limit": BREVITY_MAX_CHARS} if not passed else None,
     )
 
 

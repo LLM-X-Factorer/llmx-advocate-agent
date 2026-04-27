@@ -43,6 +43,10 @@ IMPERATIVE_FILLERS = (
 
 NUMBERING_PATTERN = re.compile(r"第[一二三四五六七八九十]|[1-9][.、]")
 
+# CJK Unified Ideographs (U+4E00-U+9FFF) + Extension A (U+3400-U+4DBF)
+# Covers the vast majority of Chinese characters used in practice.
+_CJK_RE = re.compile(r"[一-鿿㐀-䶿]")
+
 
 def contains_any(text: str, needles: tuple[str, ...]) -> str | None:
     """Return the first matching needle, or None."""
@@ -56,6 +60,11 @@ def contains_any(text: str, needles: tuple[str, ...]) -> str | None:
 def char_count_chinese(text: str) -> int:
     """Count length suitable for TTS estimation (treat each non-whitespace char as 1)."""
     return sum(1 for c in text if not c.isspace())
+
+
+def count_cjk(text: str) -> int:
+    """Count only CJK/Chinese characters — used for spec '≤N 汉字' brevity gates."""
+    return len(_CJK_RE.findall(text))
 
 
 def estimated_seconds(text: str) -> float:
