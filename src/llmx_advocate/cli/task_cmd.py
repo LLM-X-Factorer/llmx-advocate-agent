@@ -150,9 +150,63 @@ def task_qa(task_id, phase) -> None:
 
 @task_group.command("export")
 @click.argument("task_id")
-@click.option("--out", default=".")
+@click.option("--out", default=".", type=click.Path(file_okay=False), help="Output directory.")
 def task_export(task_id, out) -> None:
-    console.print("[yellow]export[/yellow] not implemented yet (planned in M3).")
+    """Export the publishable artefacts of a task to a local directory.
+
+    Writes:
+      <out>/<task_id>/video.json         — full Video JSON (P4 output)
+      <out>/<task_id>/publishing.json    — titles + description + pinned (P6)
+      <out>/<task_id>/summary.md         — human-readable digest (judgment / theme / titles)
+    """
+    import json
+    from pathlib import Path
+
+    try:
+        data = call("GET", f"/tasks/{task_id}/export")
+    except APIError as e:
+        _abort(str(e))
+
+    target_dir = Path(out) / task_id
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    written: list[str] = []
+
+    if data.get("video_json"):
+        path = target_dir / "video.json"
+        path.write_text(json.dumps(data["video_json"], ensure_ascii=False, indent=2), encoding="utf-8")
+        written.append(str(path))
+
+    if data.get("publishing"):
+        path = target_dir / "publishing.json"
+        path.write_text(json.dumps(data["publishing"], ensure_ascii=False, indent=2), encoding="utf-8")
+        written.append(str(path))
+
+    summary_lines = [f"# {data['title']}", "", f"task_id: {data['task_id']}", f"status: {data['status']}"]
+    if data.get("tier"):
+        summary_lines.append(f"tier: {data['tier']}")
+    if data.get("theme"):
+        summary_lines += ["", "## Theme", data["theme"]]
+    if data.get("judgment"):
+        summary_lines += ["", "## Core Judgment", data["judgment"]]
+    if data.get("publishing", {}).get("titles"):
+        summary_lines += ["", "## Title Options"]
+        for i, t in enumerate(data["publishing"]["titles"], 1):
+            summary_lines.append(f"{i}. **[{t.get('formula_id', '?')}]** {t['text']}")
+            if t.get("rationale"):
+                summary_lines.append(f"   - {t['rationale']}")
+    if data.get("publishing", {}).get("description"):
+        summary_lines += ["", "## Description", data["publishing"]["description"]]
+    if data.get("publishing", {}).get("pinned_comment"):
+        summary_lines += ["", "## Pinned Comment", "```", data["publishing"]["pinned_comment"], "```"]
+
+    summary_path = target_dir / "summary.md"
+    summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
+    written.append(str(summary_path))
+
+    console.print(f"[green]exported[/green] {task_id} → {target_dir}")
+    for p in written:
+        console.print(f"  {p}")
 
 
 @task_group.command("fork")

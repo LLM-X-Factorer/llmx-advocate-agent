@@ -9,6 +9,7 @@ from llmx_advocate.core.engine import PhaseEngine, run_task_until_blocked
 from llmx_advocate.core.models import (
     PhaseId,
     PhaseRun,
+    PhaseRunStatus,
     SourceInput,
     Task,
     TaskConfig,
@@ -148,6 +149,45 @@ async def rerun_qa(task_id: str, phase: PhaseId) -> dict:
     raise HTTPException(status_code=501, detail="qa rerun not implemented yet")
 
 
-@router.get("/{task_id}/export")
-async def export_task(task_id: str) -> dict:
-    raise HTTPException(status_code=501, detail="export not implemented yet")
+class TaskExport(BaseModel):
+    task_id: str
+    title: str
+    status: str
+    video_json: dict | None = None
+    publishing: dict | None = None
+    judgment: str | None = None
+    theme: str | None = None
+    tier: str | None = None
+
+
+@router.get("/{task_id}/export", response_model=TaskExport)
+async def export_task(task_id: str, session: AsyncSession = Depends(db_session)) -> TaskExport:
+    """Bundle the publishable artefacts (Video JSON + titles/description/pinned)
+    plus a few headline metadata fields. Works on tasks in any state — exports
+    whatever passed phases produced; missing phases come back as null."""
+    task = await repo.get_task(session, task_id)
+    if task is None:
+        raise HTTPException(404, f"task {task_id} not found")
+
+    runs = await repo.list_phase_runs(session, task_id)
+    by_phase: dict[str, dict] = {}
+    for r in runs:
+        if r.status == PhaseRunStatus.PASSED:
+            by_phase[str(r.phase_id)] = r.output
+
+    layer = by_phase.get("P2") or {}
+    judgment = by_phase.get("P2.5") or {}
+    deep = by_phase.get("P2.6") or {}
+    video = by_phase.get("P4")
+    publishing = by_phase.get("P6")
+
+    return TaskExport(
+        task_id=task.id,
+        title=task.title,
+        status=task.status.value,
+        video_json=video,
+        publishing=publishing,
+        judgment=judgment.get("full_sentence") if judgment else None,
+        theme=deep.get("theme") if deep else None,
+        tier=layer.get("tier") if layer else None,
+    )

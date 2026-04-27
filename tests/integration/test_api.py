@@ -77,6 +77,32 @@ async def test_get_task_404(client):
 
 
 @pytest.mark.asyncio
+async def test_export_returns_publishable_bundle(client):
+    """A completed task should expose video_json + publishing + headline metadata."""
+    pack = (FIXTURES / "scout-pack-example.md").read_text(encoding="utf-8")
+    create = await client.post("/tasks", json={"title": "exp", "source": {"pack_content": pack}})
+    task_id = create.json()["task"]["id"]
+
+    r = await client.get(f"/tasks/{task_id}/export")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["task_id"] == task_id
+    assert body["status"] == "completed"
+    assert body["video_json"] is not None
+    assert "scenes" in body["video_json"]
+    assert body["publishing"] is not None
+    assert body["judgment"]
+    assert body["theme"]
+    assert body["tier"] == "留存"
+
+
+@pytest.mark.asyncio
+async def test_export_404_for_unknown_task(client):
+    r = await client.get("/tasks/01HXNOSUCH/export")
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
 async def test_list_tasks(client):
     pack = (FIXTURES / "manual-pack-example.md").read_text(encoding="utf-8")
     await client.post("/tasks", json={"title": "a", "source": {"pack_content": pack}})
