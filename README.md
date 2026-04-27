@@ -138,6 +138,11 @@ llmx task show <id>
 llmx task run <id>                # 一直执行到完成或卡住
 llmx task pause <id> / resume <id>
 
+# 人工干预
+llmx task qa <id> <phase>         # 重跑某 phase 的质检（不重生成）
+llmx task edit <id> <phase>       # $EDITOR 打开 phase 输出，存盘后自动跑 QA
+llmx task export <id> --out=./    # 导出 video.json + publishing.json + summary.md
+
 # 评测（A/B 对比）
 llmx eval fork <id> --model=deepseek/deepseek-v4-pro --opening-style=suspense_first
 llmx eval compare <task_a_id> <task_b_id>
@@ -158,7 +163,7 @@ llmx eval batch --source=<pack> --models=deepseek/deepseek-chat,deepseek/deepsee
 
 - ✅ 修改 phase / gate 标准，必须同步更新 `docs/specification.md`
 - ✅ 加 fixture / golden test 永远先于改 phase 实现
-- ✅ 裁判 LLM 固定（V0.1 用 OpenRouter / `inclusionai/ling-2.6-1t:free`；拿到 Anthropic key 后切 `claude-opus-4-7`），任何切换必须同步决策日志——评测基线不能漂移
+- ✅ 裁判 LLM 固定（V0.1 用 OpenRouter / `deepseek/deepseek-v4-flash`；拿到 Anthropic key 后切 `claude-opus-4-7`），任何切换必须同步决策日志——评测基线不能漂移
 - ❌ 不允许 `--force` 跳过质检
 - ❌ 不要在没读 `docs/source-skill/` 的情况下改 phase 行为
 
@@ -184,12 +189,13 @@ llmx eval batch --source=<pack> --models=deepseek/deepseek-chat,deepseek/deepsee
 | **P6** Auxiliary Output（2-3 个标题 / 简介 / 章节时间戳）| ✅ |
 | Celery worker 接入（异步任务推进） | ✅（`run_async=true` opt-in，inline 仍是默认）|
 | 评测脚手架（task fork / eval compare / eval batch） | ✅ |
+| 人工干预（task qa rerun / task edit / task export） | ✅ |
 | Web 只读详情页（V0.2） | 🚧 |
 | P0 选题预诊断 / P7 商业化对齐 | 🚧 V0.3 之后 |
 
 **🎉 V0.1 完整闭环：真实 scout pack（reddit DeepSeek-v4 inference）经 9 phase 全栈跑通到 COMPLETED**，3.5 分钟产出 22 scenes / 8.2 分钟 B 站视频 JSON + 3 个标题选项 + 简介 + 章节时间戳。golden 输出存档在 `tests/golden/scout-deepseek-v4-pack-video.json`。
 
-测试：188/188 通过。
+测试：193/193 通过（unit 168 + integration 25）。
 
 ## 路线图
 
@@ -199,6 +205,7 @@ llmx eval batch --source=<pack> --models=deepseek/deepseek-chat,deepseek/deepsee
 - [x] V0.1 P4 suspense_first 风格 5 项 judge gate
 - [x] V0.1 Celery 异步任务（opt-in via `run_async=true`）
 - [x] V0.1 评测脚手架（task fork / eval compare / eval batch）
+- [x] V0.1 人工干预（task qa rerun / task edit / task export）
 - [x] V0.1 真实端到端 smoke（scout pack → 9 phase → COMPLETED，3.5 min，golden 输出已存档）
 - [x] scout-agent v0.1 schema 同步（接受所有 scout-real 产出）
 - [ ] V0.2 只读 Web 详情页

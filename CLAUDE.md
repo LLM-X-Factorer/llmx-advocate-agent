@@ -102,16 +102,19 @@
 - ✅ 完成：**P4 suspense_first** 5 项 judge gate（spec §5.3.2）
 - ✅ 完成：**Celery worker** 接入（opt-in via `run_async=true`，inline 仍是默认）
 - ✅ 完成：**评测脚手架** —— `eval fork` / `eval compare` / `eval batch`，A/B 框架就绪
-- 🟡 部分完成：真实端到端 smoke —— P1/P1.5/P2 用 deepseek-v4-pro 跑通；P2.5 受 Ling-1T 裁判过严阻塞（建议未来切付费裁判 model）
+- ✅ 完成：**人工干预** —— `task qa <phase>` 重跑质检 / `task edit <phase>` 编辑 PhaseRun + 自动跑 QA / `task export` 导出 video.json + publishing.json + summary.md
+- ✅ 完成：**真实端到端 smoke** —— scout pack（reddit DeepSeek-v4 inference）→ 9 phase → COMPLETED，3.5 min，golden 输出在 `tests/golden/scout-deepseek-v4-pack-video.json`
 
-**🎉 V0.1 主线全部完成：9 phase + Celery + 评测脚手架。185/185 测试通过。**
+**🎉 V0.1 主线 100% 闭合：9 phase + Celery + 评测脚手架 + 人工干预 + 真实 smoke + scout schema 对接**
 
-**测试覆盖**：185 项（unit 163 + integration 22），全过。Lint 干净。
+**测试覆盖**：193 项（unit 168 + integration 25），全过。Lint 干净。
 
-**下一步候选**：
-1. 拿到 Anthropic key 后切回 Claude Opus 当裁判 → P2.5 应该能稳定 pass
-2. V0.2：只读 Web 详情页（Next.js / RSC，反正后端 API 完整）
-3. V0.3：P0 选题预诊断 / P7 商业化对齐（dbs-* 整合的可选 phase）
+**下一步候选**（V0.2+）：
+1. **V0.2 Web 只读详情页**：列表 + 任务详情 + phase 输出展示（Next.js / RSC，后端 API 已完整就绪）
+2. **裁判 LLM 升级**：拿到 Anthropic key 后切 Claude Opus 4.7（当前用 deepseek-v4-flash，质量已可接受但 Anthropic 是设计意图）
+3. **V0.3 dbs-\* 商业化整合**：P0 选题预诊断 / P7 商业化对齐（spec §6.2 占位，设计已有）
+4. **生产部署**：`docker compose up -d` 全栈跑在腾讯云 Lighthouse 上，配 cron 让 scout 自动喂 pack
+5. **A/B 评测真跑**：用 `eval batch` 在多个 model × opening_style 上跑同一 pack，看输出质量差异（当前评测脚手架完整但还没产出真对比报告）
 
 ---
 
@@ -248,6 +251,18 @@ Golden 存档：`tests/golden/scout-deepseek-v4-pack-video.json`。
 通过 P2.5 全部 4 项强制 QA：独特、独立有价值、≤50 字、不依赖来源背书。
 
 **测试覆盖**：188 项（unit 165 + integration 23），全过
+
+### 2026-04-27（晨）— spec §4.1 CLI 闭环：export / qa rerun / manual edit
+
+V0.1 收尾的最后两轮 commit，把 spec §4.1 列出的全套 CLI 命令从 stub 接通：
+
+- `task export <id>` → `GET /tasks/{id}/export`：扫描 PASSED PhaseRun，把 P4 的 video JSON、P6 的 publishing 包、headline 元数据（judgment / theme / tier）打包返回。CLI 写出 `<out>/<id>/{video.json, publishing.json, summary.md}` 三个文件——summary.md 是人可读的 digest（标题 / 公式 ID / 简介 / 置顶时间戳）
+- `task qa <id> <phase>` → `POST /tasks/{id}/phases/{phase}/qa`：对最近一个 PASSED PhaseRun 重跑 QA gates（不重生成）。trigger="manual_qa_rerun"，audit trail 完整保留。修红线 / 换裁判 model 后用来回归校验
+- `task edit <id> <phase>` → `PUT /tasks/{id}/phases/{phase}`：CLI 把当前输出写到临时 JSON 文件、`$EDITOR` 打开、保存后 PUT 回去。API 在新 PhaseRun 上跑 QA gates；spec §1 的"人工修改也得过 QA"红线被严格执行——不允许 `--force`
+
+3 个新集成测试覆盖：qa rerun happy + 404、edit 写入 → QA 跑通 → edited_by_human 标记。
+
+**测试覆盖**：193 项（unit 168 + integration 25），全过
 
 ### 2026-04-26（夜·更后）— B：P1.5 业务接通（第一个真用 LLM 的 phase）
 
