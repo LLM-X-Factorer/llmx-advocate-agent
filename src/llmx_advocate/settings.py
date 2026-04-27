@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -52,11 +53,21 @@ class Settings(BaseSettings):
     # Comma-separated list of allowed CORS origins. Vite dev server defaults to 5173.
     llmx_cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
 
+    # When set, terminal-status tasks (COMPLETED / FAILED) get their export
+    # bundle written to this directory. The host's git-push cron then turns
+    # that tree into a private GitHub repo. Empty/unset = persistence disabled
+    # (default for tests + V0.1 CLI flow).
+    llmx_outputs_dir: str = ""
+
     llmx_log_level: str = Field(default="INFO")
 
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.llmx_cors_origins.split(",") if o.strip()]
+
+    @property
+    def outputs_dir_path(self) -> Path | None:
+        return Path(self.llmx_outputs_dir).expanduser() if self.llmx_outputs_dir else None
 
     @property
     def database_url(self) -> str:

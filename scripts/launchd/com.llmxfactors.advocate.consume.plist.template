@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Launchd plist for advocate's "consume scout packs" cron.
+  Runs at 10:05 / 16:05 / 22:05 (one hour after scout's 9/15/21 push).
+
+  Install: copy to ~/Library/LaunchAgents/ replacing __PLACEHOLDERS__,
+  then `launchctl load ~/Library/LaunchAgents/com.llmxfactors.advocate.consume.plist`
+
+  Replace before installing:
+    __PROJECT_DIR__              full path to this repo (e.g. /Users/liu/Projects/llmx-advocate-agent)
+    __SCOUT_PACKS_REPO_DIR__     full path to llmx-scout-packs working copy
+    __ADVOCATE_OUTPUTS_REPO_DIR__ full path to llmx-advocate-outputs working copy
+    __ADVOCATE_API_BASE__        e.g. http://localhost:8000
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.llmxfactors.advocate.consume</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>__PROJECT_DIR__/scripts/cron-consume-packs.sh</string>
+    </array>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ADVOCATE_API_BASE</key>
+        <string>__ADVOCATE_API_BASE__</string>
+        <key>SCOUT_PACKS_REPO_DIR</key>
+        <string>__SCOUT_PACKS_REPO_DIR__</string>
+        <key>ADVOCATE_OUTPUTS_REPO_DIR</key>
+        <string>__ADVOCATE_OUTPUTS_REPO_DIR__</string>
+        <key>PATH</key>
+        <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>StartCalendarInterval</key>
+    <array>
+        <dict>
+            <key>Hour</key><integer>10</integer>
+            <key>Minute</key><integer>5</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>16</integer>
+            <key>Minute</key><integer>5</integer>
+        </dict>
+        <dict>
+            <key>Hour</key><integer>22</integer>
+            <key>Minute</key><integer>5</integer>
+        </dict>
+    </array>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>__PROJECT_DIR__/logs/consume.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__PROJECT_DIR__/logs/consume.err.log</string>
+</dict>
+</plist>

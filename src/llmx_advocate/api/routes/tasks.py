@@ -269,29 +269,12 @@ async def export_task(task_id: str, session: AsyncSession = Depends(db_session))
     """Bundle the publishable artefacts (Video JSON + titles/description/pinned)
     plus a few headline metadata fields. Works on tasks in any state — exports
     whatever passed phases produced; missing phases come back as null."""
+    from llmx_advocate.core.export import build_export_bundle
+
     task = await repo.get_task(session, task_id)
     if task is None:
         raise HTTPException(404, f"task {task_id} not found")
 
     runs = await repo.list_phase_runs(session, task_id)
-    by_phase: dict[str, dict] = {}
-    for r in runs:
-        if r.status == PhaseRunStatus.PASSED:
-            by_phase[str(r.phase_id)] = r.output
-
-    layer = by_phase.get("P2") or {}
-    judgment = by_phase.get("P2.5") or {}
-    deep = by_phase.get("P2.6") or {}
-    video = by_phase.get("P4")
-    publishing = by_phase.get("P6")
-
-    return TaskExport(
-        task_id=task.id,
-        title=task.title,
-        status=task.status.value,
-        video_json=video,
-        publishing=publishing,
-        judgment=judgment.get("full_sentence") if judgment else None,
-        theme=deep.get("theme") if deep else None,
-        tier=layer.get("tier") if layer else None,
-    )
+    bundle = build_export_bundle(task, runs)
+    return TaskExport(**bundle.to_api_dict())

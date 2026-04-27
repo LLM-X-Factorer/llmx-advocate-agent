@@ -109,18 +109,61 @@
 
 **测试覆盖**：193 项（unit 168 + integration 25），全过。Lint 干净。
 
-**下一步候选**（V0.2+）：
-1. **V0.2 Web 只读详情页**：列表 + 任务详情 + phase 输出展示（Next.js / RSC，后端 API 已完整就绪）
-2. **裁判 LLM 升级**：拿到 Anthropic key 后切 Claude Opus 4.7（当前用 deepseek-v4-flash，质量已可接受但 Anthropic 是设计意图）
-3. **V0.3 dbs-\* 商业化整合**：P0 选题预诊断 / P7 商业化对齐（spec §6.2 占位，设计已有）
-4. **生产部署**：`docker compose up -d` 全栈跑在腾讯云 Lighthouse 上，配 cron 让 scout 自动喂 pack
-5. **A/B 评测真跑**：用 `eval batch` 在多个 model × opening_style 上跑同一 pack，看输出质量差异（当前评测脚手架完整但还没产出真对比报告）
+**已完成**（2026-04-27）：
+- ✅ **V0.2 Web 只读详情页**：列表 / 新建（粘贴+拖拽 .md）/ 详情（phase 时间线 + QA gates + 输出 JSON）/ 导出预览（22 scenes 渲染）。Vite + React + Tailwind 4 + 自写 shadcn-style 组件 + OpenAPI 类型生成
+- ✅ **输出归档 git-native**：`core/export.py` + 引擎收尾 hook + `LLMX_OUTPUTS_DIR` + `docker-compose` outputs 卷 + 双 cron 脚本 + launchd plist 模板 + 输出仓 schema 文档
+
+**下一步候选**：
+1. **W3 Mac mini 部署**：scout 跑通后启动 advocate 部署 — `docker compose up -d` + 建私有仓 `llmx-advocate-outputs` + 跑 `scripts/launchd/install.sh` + 手工 smoke 1-2 个真实 scout pack
+2. **W4 启用 cron 全自动**：观察 1 周输出仓积累节奏 + 失败率
+3. **裁判 LLM 升级**：拿到 Anthropic key 后切 Claude Opus 4.7
+4. **V0.3 dbs-\* 商业化整合**：P0 选题预诊断 / P7 商业化对齐（spec §6.2 占位）
+5. **A/B 评测真跑**：用 `eval batch` 跑 model × opening_style 笛卡尔积
 
 ---
 
 ## 4. 决策日志
 
 按时间倒序记录。每次重大决定都要在这里留痕，包括"决定是什么"、"为什么"、"否决了什么"。
+
+### 2026-04-27（V0.2 收官）— 部署目标：腾讯云 Lighthouse → Mac mini；输出 git-native
+
+**推翻 2026-04-26 的"腾讯云 Lighthouse + Docker Compose"决定**。新决策：
+
+- **部署目标改为香港 Mac mini**（用户已上手）
+  - 理由：scout-agent 已经在同一台 Mac mini 部署中；同机器零网络对接；Apple Silicon 性能远胜同价位 VPS；无月费
+  - 风险：可用性低于云（家里停电/路由器重启 → 服务挂）—— 自用阶段可接受，V1.0 对外开放再迁
+  - 公网访问：自用阶段不需要（仅局域网/Tailscale）；scout cron 内部跑也不需要外网
+- **容器化继续用 docker-compose**（不切 brew launchd）
+  - Mac mini 已装 Docker；compose 文件已就绪只需挂 outputs 卷
+- **输出归档 git-native** — 新增独立私有仓 `llmx-advocate-outputs`
+  - scout 推 `llmx-scout-packs` ←→ advocate 推 `llmx-advocate-outputs`，两边对称
+  - 每个 task 一个目录，含 `task.json` / `summary.md` / `video.json` / `publishing.json` / `source-pack.md`
+  - 失败任务进 `failures/` 子树（不污染主目录但保留诊断信号）
+  - schema 文档 `docs/output-archive-schema.md`（双仓同步）
+  - 优势：所有产出可追溯/可 diff/可回滚；未来 GitHub Actions 可挂渲染流水线
+  - 否决：留 DB / MinIO 作为唯一真源 —— 缺失 git 的 history 和跨机器可移植性
+- **去重 source pack 用 outputs 仓本身做 source of truth**
+  - cron 跑前 git pull outputs，扫所有 `task.json` 集出 `source_pack_id` 集合，已处理则跳过
+  - 否决：本地 manifest 文件（容易丢，跨机器不便）
+  - 否决：advocate DB 加 `source_pack_id` 字段 —— 不动 schema 是干净选择
+- **触发模型：advocate cron pull 而非 scout webhook push**
+  - launchd 10/16/22（晚 scout 1 小时跑），git pull packs / 扫 today / POST advocate /tasks
+  - 优势：scout 不知道 advocate 存在，完全解耦
+  - 缺点：1 小时延迟 —— 自用阶段无所谓
+- **失败 task 也写归档**
+  - 含失败 phase / 最后 PhaseRun 的 QA gates / traceback
+  - 信号：哪些 scout pack 触发 P2.5 红线、哪些被 advocate 推翻 judgment_seed —— 反向改进 scout
+
+**实现位置**：
+- 引擎收尾 hook：`core/engine.py:_finalize_task` → `_persist_outputs_best_effort`
+- 输出 bundle 构建：`core/export.py`（pure functions，复用给 endpoint 和引擎 hook）
+- Cron 脚本：`scripts/cron-consume-packs.sh` + `scripts/cron-push-outputs.sh`
+- Launchd plists：`scripts/launchd/com.llmxfactors.advocate.{consume,push}.plist.template` + `install.sh`
+- docker-compose 加 `./outputs:/app/outputs` 挂载卷
+- 配置：`LLMX_OUTPUTS_DIR` 环境变量（空 = 持久化 disabled，向后兼容）
+
+**测试**：210/210 全过（unit 181 + integration 29）。新增 `tests/unit/test_export.py` (13) + `tests/integration/test_outputs_persist.py` (4)。
 
 ### 2026-04-26 — 评审完成，方案锁定 B+
 

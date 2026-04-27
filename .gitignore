@@ -73,3 +73,8 @@ web/openapi-snapshot.json
 web/.vite/
 web/scratch.db
 
+# Output archive — docker-compose mounts ./outputs as the engine's persistence
+# target; the host's cron then pushes it into llmx-advocate-outputs. The data
+# itself doesn't belong in this repo.
+outputs/
+

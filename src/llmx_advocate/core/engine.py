@@ -121,6 +121,53 @@ class RunOutcome:
 MAX_TOTAL_PHASE_RUNS = 60
 
 
+async def _finalize_task(
+    session: AsyncSession,
+    task_id: str,
+    status: TaskStatus,
+    final_phase: PhaseId,
+    runs_executed: int,
+    last_error: str | None = None,
+) -> RunOutcome:
+    """Set terminal task status, then best-effort persist the export bundle to
+    LLMX_OUTPUTS_DIR (if configured). Disk persistence is fire-and-forget — a
+    full disk or permission error must not propagate as a task error, since
+    the DB record is already authoritative.
+    """
+    from llmx_advocate.store import repo
+
+    await repo.update_task_status(session, task_id, status=status, current_phase=final_phase)
+
+    if status in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+        await _persist_outputs_best_effort(session, task_id)
+
+    return RunOutcome(runs_executed, status, final_phase, last_error=last_error)
+
+
+async def _persist_outputs_best_effort(session: AsyncSession, task_id: str) -> None:
+    from llmx_advocate.core.export import persist_to_disk
+    from llmx_advocate.settings import get_settings
+    from llmx_advocate.store import repo
+
+    outputs_dir = get_settings().outputs_dir_path
+    if outputs_dir is None:
+        return
+
+    try:
+        task = await repo.get_task(session, task_id)
+        if task is None:
+            return
+        runs = await repo.list_phase_runs(session, task_id)
+        persist_to_disk(task, runs, outputs_dir)
+    except Exception as e:
+        # Log via stdlib logging so this surfaces in uvicorn / celery output;
+        # never re-raise — the export tree is downstream of the task lifecycle.
+        import logging
+        logging.getLogger(__name__).warning(
+            "failed to persist export bundle for task %s: %s", task_id, e
+        )
+
+
 async def run_task_until_blocked(
     session: AsyncSession,
     engine: PhaseEngine,
@@ -134,6 +181,9 @@ async def run_task_until_blocked(
       - phase business not implemented (NotImplementedError) → status=PAUSED_FOR_HUMAN
       - generation/runtime error → status=FAILED
       - total phase runs exceeds MAX_TOTAL_PHASE_RUNS → status=FAILED (loop guard)
+
+    On any terminal status (COMPLETED / FAILED), if LLMX_OUTPUTS_DIR is set the
+    engine also writes the export bundle to disk (see core/export.py).
     """
     # Imports localised to avoid circular: engine.py is imported by core.phases.* which import models.
     from llmx_advocate.core.phases import build_phase_registry
@@ -155,11 +205,9 @@ async def run_task_until_blocked(
         # Global safety net against fallback-loops.
         all_runs = await repo.list_phase_runs(session, task_id)
         if len(all_runs) >= MAX_TOTAL_PHASE_RUNS:
-            await repo.update_task_status(
-                session, task_id, status=TaskStatus.FAILED, current_phase=task.current_phase
-            )
-            return RunOutcome(
-                runs_executed, TaskStatus.FAILED, task.current_phase,
+            return await _finalize_task(
+                session, task_id, TaskStatus.FAILED, task.current_phase,
+                runs_executed,
                 last_error=f"task exceeded {MAX_TOTAL_PHASE_RUNS} total phase runs (loop guard)",
             )
 
@@ -247,8 +295,9 @@ async def run_task_until_blocked(
             runs_executed += 1
             fallback = engine.fallback_for(phase_id)
             if fallback is None:
-                await repo.update_task_status(session, task_id, status=TaskStatus.FAILED, current_phase=phase_id)
-                return RunOutcome(runs_executed, TaskStatus.FAILED, phase_id, last_error=last_error)
+                return await _finalize_task(
+                    session, task_id, TaskStatus.FAILED, phase_id, runs_executed, last_error=last_error
+                )
             await repo.update_task_status(session, task_id, status=TaskStatus.RUNNING, current_phase=fallback)
             continue
 
@@ -271,9 +320,10 @@ async def run_task_until_blocked(
             )
             next_phase = engine.next_phase(phase_id)
             if next_phase is None:
-                await repo.update_task_status(session, task_id, status=TaskStatus.COMPLETED, current_phase=phase_id)
                 runs_executed += 1
-                return RunOutcome(runs_executed, TaskStatus.COMPLETED, phase_id, last_error=None)
+                return await _finalize_task(
+                    session, task_id, TaskStatus.COMPLETED, phase_id, runs_executed, last_error=None
+                )
             await repo.update_task_status(session, task_id, status=TaskStatus.RUNNING, current_phase=next_phase)
             runs_executed += 1
             continue
@@ -313,8 +363,10 @@ async def run_task_until_blocked(
         fallback = engine.fallback_for(phase_id)
         runs_executed += 1
         if fallback is None:
-            await repo.update_task_status(session, task_id, status=TaskStatus.FAILED, current_phase=phase_id)
-            return RunOutcome(runs_executed, TaskStatus.FAILED, phase_id, last_error="qa retries exhausted, no fallback")
+            return await _finalize_task(
+                session, task_id, TaskStatus.FAILED, phase_id, runs_executed,
+                last_error="qa retries exhausted, no fallback",
+            )
         await repo.update_task_status(session, task_id, status=TaskStatus.RUNNING, current_phase=fallback)
         # Loop continues — fallback phase will re-run from scratch.
 
