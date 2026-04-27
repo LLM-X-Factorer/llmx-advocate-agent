@@ -90,7 +90,7 @@ fi
 commit_args=()
 [[ -n "${GIT_AUTHOR_NAME:-}" ]] && commit_args+=(--author "${GIT_AUTHOR_NAME} <${GIT_AUTHOR_EMAIL:-noreply@local}>")
 
-git commit "${commit_args[@]}" -m "$subject" --quiet
+git commit ${commit_args[@]+"${commit_args[@]}"} -m "$subject" --quiet
 log "pushing..."
 git push --quiet
 log "done"
