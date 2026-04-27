@@ -22,12 +22,12 @@ from llmx_advocate.core.qa.rules import (
 )
 
 BODY_EXCERPT_MAX_CHARS = 5000
-BREVITY_MAX_CHARS = 50
+BREVITY_MAX_CHARS = 60
 
 P2_5_SYSTEM = (
     "You are an analyst extracting the *core judgment* from source material. "
     "The judgment must be your own structural insight (not a paraphrase), "
-    "able to stand on its own without the source, fit in 15 spoken seconds, "
+    "able to stand on its own without the source, fit in 18 spoken seconds, "
     "and not rely on source-backing phrases. Return strict JSON, no commentary."
 )
 
