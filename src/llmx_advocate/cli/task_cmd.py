@@ -137,15 +137,79 @@ def task_step(task_id) -> None:
 @task_group.command("edit")
 @click.argument("task_id")
 @click.argument("phase")
-def task_edit(task_id, phase) -> None:
-    console.print("[yellow]edit[/yellow] not implemented yet (planned in M3).")
+@click.option("--reason", default="", help="Edit note recorded with the new PhaseRun.")
+def task_edit(task_id, phase, reason) -> None:
+    """Open the latest passed phase output in $EDITOR, then save + re-run QA.
+
+    QA must pass for the edited output to be marked PASSED. Per spec §1, manual
+    edits don't bypass gates; if QA fails the new run is recorded as qa_failed
+    and the engine treats it like any other retry.
+    """
+    import json
+    import os
+    import subprocess
+    import tempfile
+
+    try:
+        runs = call("GET", f"/tasks/{task_id}/phases/{phase}")
+    except APIError as e:
+        _abort(str(e))
+
+    passed = [r for r in runs if r["status"] == "passed"]  # type: ignore[index]
+    if not passed:
+        _abort(f"phase {phase} has no passed run on task {task_id}")
+    current_output = passed[-1]["output"]
+
+    editor = os.environ.get("EDITOR", "vi")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False, encoding="utf-8") as tf:
+        json.dump(current_output, tf, ensure_ascii=False, indent=2)
+        tf_path = tf.name
+
+    subprocess.run([editor, tf_path], check=True)
+
+    with open(tf_path, encoding="utf-8") as f:
+        edited = json.load(f)
+    os.unlink(tf_path)
+
+    if edited == current_output:
+        console.print("[dim]no changes — skipping save[/dim]")
+        return
+
+    try:
+        new_run = call("PUT", f"/tasks/{task_id}/phases/{phase}", json={"output": edited, "edit_note": reason})
+    except APIError as e:
+        _abort(str(e))
+
+    qa = new_run.get("qa_result") or {}  # type: ignore[union-attr]
+    overall = qa.get("passed_overall")
+    label = "[green]PASSED[/green]" if overall else "[red]QA FAILED[/red]"
+    console.print(f"saved edit → {label}")
+    if not overall:
+        for g in qa.get("gates", []):
+            if not g.get("passed"):
+                console.print(f"  [red]✗[/red] {g['gate_id']}: {(g.get('rationale') or '')[:120]}")
 
 
 @task_group.command("qa")
 @click.argument("task_id")
 @click.argument("phase")
 def task_qa(task_id, phase) -> None:
-    console.print("[yellow]qa rerun[/yellow] not implemented yet (planned in M3).")
+    """Re-run QA gates on the latest passed phase output without re-generating."""
+    try:
+        run = call("POST", f"/tasks/{task_id}/phases/{phase}/qa")
+    except APIError as e:
+        _abort(str(e))
+
+    qa = run.get("qa_result") or {}  # type: ignore[union-attr]
+    table = Table(title=f"{phase} QA result (rerun)")
+    table.add_column("Gate", style="cyan")
+    table.add_column("Status")
+    table.add_column("Rationale")
+    for g in qa.get("gates", []):
+        mark = "[green]✓[/green]" if g["passed"] else "[red]✗[/red]"
+        table.add_row(g["gate_id"], mark, (g.get("rationale") or "")[:80])
+    console.print(table)
+    console.print(f"overall: {'[green]PASSED[/green]' if qa.get('passed_overall') else '[red]FAILED[/red]'}")
 
 
 @task_group.command("export")

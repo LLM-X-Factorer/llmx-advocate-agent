@@ -103,6 +103,54 @@ async def test_export_404_for_unknown_task(client):
 
 
 @pytest.mark.asyncio
+async def test_qa_rerun_returns_a_new_phase_run(client):
+    """POST /tasks/{id}/phases/{phase}/qa re-runs gates without re-generating."""
+    pack = (FIXTURES / "scout-pack-example.md").read_text(encoding="utf-8")
+    create = await client.post("/tasks", json={"title": "qa", "source": {"pack_content": pack}})
+    task_id = create.json()["task"]["id"]
+
+    r = await client.post(f"/tasks/{task_id}/phases/P1/qa")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["phase_id"] == "P1"
+    assert body["trigger"] == "manual_qa_rerun"
+    assert body["qa_result"] is not None
+
+
+@pytest.mark.asyncio
+async def test_qa_rerun_404_when_no_passed_run(client):
+    bad_pack = '---\nschema_version: "1.0"\npack_id: "x"\n---\nbody'
+    create = await client.post("/tasks", json={"title": "bad", "source": {"pack_content": bad_pack}})
+    task_id = create.json()["task"]["id"]
+
+    r = await client.post(f"/tasks/{task_id}/phases/P2/qa")
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_phase_runs_qa_on_edited_output(client):
+    """PUT /tasks/{id}/phases/{phase} accepts edited output and records QA result."""
+    pack = (FIXTURES / "scout-pack-example.md").read_text(encoding="utf-8")
+    create = await client.post("/tasks", json={"title": "edit", "source": {"pack_content": pack}})
+    task_id = create.json()["task"]["id"]
+
+    # Get the existing P1 output
+    runs = (await client.get(f"/tasks/{task_id}/phases/P1")).json()
+    edited_output = dict(runs[-1]["output"])
+    edited_output["body_markdown"] = edited_output["body_markdown"] + "\n\n## edited\nadded by human"
+
+    r = await client.put(
+        f"/tasks/{task_id}/phases/P1",
+        json={"output": edited_output, "edit_note": "added a section"},
+    )
+    assert r.status_code == 200, r.text
+    new_run = r.json()
+    assert new_run["edited_by_human"] is True
+    assert new_run["edit_note"] == "added a section"
+    assert new_run["qa_result"]["passed_overall"] is True
+
+
+@pytest.mark.asyncio
 async def test_list_tasks(client):
     pack = (FIXTURES / "manual-pack-example.md").read_text(encoding="utf-8")
     await client.post("/tasks", json={"title": "a", "source": {"pack_content": pack}})
