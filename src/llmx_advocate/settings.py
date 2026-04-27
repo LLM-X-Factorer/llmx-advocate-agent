@@ -49,7 +49,14 @@ class Settings(BaseSettings):
     llmx_api_port: int = 8000
     llmx_api_base_url: str = "http://localhost:8000"
 
+    # Comma-separated list of allowed CORS origins. Vite dev server defaults to 5173.
+    llmx_cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
     llmx_log_level: str = Field(default="INFO")
+
+    @property
+    def cors_origins(self) -> list[str]:
+        return [o.strip() for o in self.llmx_cors_origins.split(",") if o.strip()]
 
     @property
     def database_url(self) -> str:

@@ -65,3 +65,11 @@ redis-data/
 
 # Claude Code local state
 .claude/
+
+# Web (Vite + React)
+web/node_modules/
+web/dist/
+web/openapi-snapshot.json
+web/.vite/
+web/scratch.db
+

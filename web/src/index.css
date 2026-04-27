@@ -1,0 +1,36 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: var(--color-background, #ffffff);
+  color: var(--color-foreground, #08060d);
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #0b0b10;
+    color: #e7e7ea;
+  }
+}
+
+/* Pretty scrollbar for code blocks / JSON */
+pre, code {
+  font-family: var(--font-mono);
+}

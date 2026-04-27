@@ -150,6 +150,28 @@ llmx eval batch --source=<pack> --models=deepseek/deepseek-chat,deepseek/deepsee
   --opening-styles=judgment_first,suspense_first
 ```
 
+### Web 只读详情页（V0.2）
+
+Vite + React + Tailwind 4 + shadcn-style 组件，纯静态前端直连 FastAPI。提供
+任务列表 / 新建（粘贴或拖入 .md）/ 详情（phase 时间线 + QA gates + 输出 JSON）/
+导出预览（标题候选 / 简介 / 章节时间戳 / Video JSON 按 scene 渲染）。
+
+```bash
+# 1. 起后端 API（同最快试跑流程）
+LLMX_DATABASE_URL="sqlite+aiosqlite:///./dev.db" \
+  uvicorn llmx_advocate.api.main:app --reload &
+
+# 2. 起前端
+cd web
+pnpm install              # 首次
+pnpm dev                  # http://localhost:5173
+
+# OpenAPI schema 改了之后重新生成 TS 类型
+pnpm gen:api
+```
+
+CORS origins 从 `LLMX_CORS_ORIGINS` 配置（默认 `localhost:5173`）。
+
 ## 文档
 
 - [项目记忆 / 红线 / 决策日志](CLAUDE.md)
