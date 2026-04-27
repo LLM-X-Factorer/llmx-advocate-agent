@@ -57,7 +57,7 @@ consumed_count=$(wc -l < "$consumed_ids_file" | tr -d ' ')
 log "found $consumed_count already-consumed pack(s)"
 
 # 3. Walk today's pack directory and POST anything new.
-packs_dir="$SCOUT_PACKS_REPO_DIR/output/packs/$PACK_DATE"
+packs_dir="$SCOUT_PACKS_REPO_DIR/packs/$PACK_DATE"
 if [[ ! -d "$packs_dir" ]]; then
   log "no packs directory for $PACK_DATE — nothing to do"
   exit 0
