@@ -17,7 +17,6 @@ from llmx_advocate.core.qa.judges import judge_with_template
 from llmx_advocate.core.qa.rules import (
     RELAY_PHRASES,
     SOURCE_BACKING_BLACKLIST,
-    char_count_chinese,
     contains_any,
     count_cjk,
 )
@@ -50,8 +49,8 @@ class P2_5Judgment(Phase):
       P2.5_cognition_gap       (judge)
 
     judgment_seed handling: scout's seed (if any) is treated as a *starting
-    point*, never a finished verdict. The model can keep it (overrode_seed=False)
-    or override (overrode_seed=True + override_reason). Either way the 4 gates
+    point*, never a finished verdict. The model picks one of accept / deepen /
+    override (override requires override_reason). Either way the 4 gates
     run on the final full_sentence — the seed gets no immunity.
 
     On retry exhaustion (5 by default) → fallback to P1.5 (try a different angle).
@@ -118,7 +117,16 @@ def _parse_judgment(parsed_json: dict | None, raw_text: str, pack: SourcePack) -
     # If the model didn't echo the seed, fill it from the source pack.
     seed = pack.scout_analysis.judgment_seed if pack.scout_analysis else None
     candidate.setdefault("seed_judgment", seed)
-    candidate.setdefault("overrode_seed", False)
+    # Default seed_relation: "none" if no seed, "accept" if seed exists and the
+    # model didn't declare a relation. Older outputs that used the binary
+    # overrode_seed flag get migrated here so we don't break replay of historical runs.
+    if "seed_relation" not in candidate:
+        if "overrode_seed" in candidate:
+            candidate["seed_relation"] = "override" if candidate.pop("overrode_seed") else "accept"
+        elif seed is None:
+            candidate["seed_relation"] = "none"
+        else:
+            candidate["seed_relation"] = "accept"
     candidate.setdefault("override_reason", None)
 
     try:
@@ -166,7 +174,14 @@ def _gate_anti_relay_rule(judgment: Judgment) -> QAGate:
 
 
 async def _gate_uniqueness(judgment: Judgment, pack: SourcePack) -> QAGate:
-    raw_summary = _truncate(pack.body_markdown, 2000)
+    # Per scout schema §"Markdown body 段落约定" + 2026-04-29 trial: feed the
+    # judge only source segments. If we passed the full body the judge sees
+    # scout's judgment_seed (which lives in the "## Scout 的预判" hint section)
+    # and flags any seed-aligned judgment as "duplicating the original".
+    from llmx_advocate.core.source_pack_loader import extract_source_sections
+
+    source_only = extract_source_sections(pack.body_markdown)
+    raw_summary = _truncate(source_only, 2000)
     j = await judge_with_template(
         "p2_5_judgment/judges.md#P2.5_uniqueness",
         judgment=judgment,

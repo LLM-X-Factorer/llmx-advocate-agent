@@ -78,3 +78,6 @@ web/scratch.db
 # itself doesn't belong in this repo.
 outputs/
 
+# Trial / debug artefacts — intentionally local-only.
+tmp/
+

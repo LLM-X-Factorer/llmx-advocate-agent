@@ -107,6 +107,24 @@ harvest:                                 # 抓取过程的元数据
 - [Twitter thread by @karpathy](https://...) — 一句话总结
 ```
 
+## Markdown body 段落约定
+
+Body 部分有固定的小标题结构。**消费方应当区分两类段落**：
+
+| 段落 | 性质 | 含义 |
+|---|---|---|
+| `## 来源元信息` | **hint** | scout 整理的元数据展示，方便人读 |
+| `## Scout 的预判` | **hint** | scout 的预判，**不是事实** —— `judgment_seed` / `suggested_layer` / `controversy_signals` 在这里以可读形式重复呈现 |
+| `## 原文正文` | **source** | 真实的原文内容（trafilatura 抽取或 API 拿到） |
+| `## 评论区精华` | **source** | 真实的评论 |
+| `## 相关讨论` | **source** | 真实的交叉链接 |
+
+**重要约束（来自 advocate-agent 实战暴露的契约摩擦，2026-04-29）**：
+
+> 下游若要做「LLM 输出 vs 原文」的去重 / 唯一性检查（例如 P2.5 uniqueness gate），**必须只对 source 段落比对**，不要把 hint 段落也喂给裁判。否则下游 LLM 在"采用 scout 的 judgment_seed"和"绕开和 body 里出现的 seed 重复"之间陷入死锁。
+
+scout 把 hint 写进 body 是有意为之 —— 人读 pack 时需要直接看到 scout 在想什么。下游消费方有责任在自己机制里区分 hint vs source。
+
 ## 字段枚举
 
 ### `source.platform`

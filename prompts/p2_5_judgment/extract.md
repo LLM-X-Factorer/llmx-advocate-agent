@@ -7,7 +7,7 @@
 
 ## ⚠️ OUTPUT LANGUAGE: 中文 (Chinese)
 
-**所有输出字段（`surface` / `transition` / `deeper_essence` / `full_sentence` / `override_reason`）必须用简体中文。**
+**所有自然语言输出字段（`surface` / `transition` / `deeper_essence` / `full_sentence` / `override_reason`）必须用简体中文。`seed_relation` 是英文枚举（accept/deepen/override/none），不需要翻译。**
 - B 站受众是中文用户；判断必须可以直接口播
 - `full_sentence` **硬约束 ≤ 60 个汉字**（约等于 18 秒口播）— 超过即失败重试
 
@@ -28,12 +28,20 @@
 - Scout judgment_seed (起点参考，可推翻): {{ source_pack.scout_analysis.judgment_seed }}
 {% endif %}
 
-## judgment_seed handling
+## judgment_seed handling — 三态明确选择
 
-如果 scout 提供了 `judgment_seed`，把它当作**起点**而非定论：
+如果 scout 提供了 `judgment_seed`，把它当作**起点**而非定论。你必须在 `seed_relation` 字段里选择三态之一：
 
-1. **沿用** — 你独立分析后认同种子的本质。`overrode_seed=False`，但仍要用自己的话写 `full_sentence`（不抄种子）
-2. **推翻** — 你的分析得到不同结论。`overrode_seed=True`，填 `override_reason`（说明哪里更准确）
+1. **`accept`** — 你独立分析后**完全认同种子的结论**。`full_sentence` 用自己的话表达同一个判断，不抄措辞。
+2. **`deepen`** — 种子的**主题方向是对的**，但你的视角更精确 / 切入点更锐 / 找到了更结构性的本质。`full_sentence` 在种子主题之上落到一个种子没说清的层次。**`override_reason` 必填**，说明你深化在哪里。
+3. **`override`** — 你的分析得到**不同的结论**。`full_sentence` 提出种子之外的判断。**`override_reason` 必填**，说明哪里推翻了种子。
+
+> **关键区分 `accept` vs `deepen`**：
+> - 如果你只是把种子换措辞重述 → `accept`
+> - 如果你在种子主题之上加了种子没有的结构性洞察（比如指出"原因背后还有原因"、"测试方法本身有偏"、"X 只是表象，真正的 Y 在更深一层"）→ `deepen`
+> - 如果种子是"X 比 Y 更重要"，你说的是"其实 X 和 Y 都不是关键，真正决定的是 Z" → `override`
+
+如果**没有 seed**（手工 pack 或 scout 没给）：用 `seed_relation: "none"`，`override_reason: null`。
 
 **4 项 QA 在最终 `full_sentence` 上跑，种子无豁免。**
 
@@ -46,8 +54,8 @@
   "deeper_essence": "<深层本质，中文，≤30字>",
   "full_sentence": "<一句话核心判断，中文，≤60汉字>",
   "seed_judgment": "<种子原文 / null>",
-  "overrode_seed": false,
-  "override_reason": "<推翻理由 / null>"
+  "seed_relation": "accept | deepen | override | none",
+  "override_reason": "<deepen 或 override 时必填，accept 或 none 时填 null>"
 }
 ```
 

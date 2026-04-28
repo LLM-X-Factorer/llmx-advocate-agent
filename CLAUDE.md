@@ -126,6 +126,39 @@
 
 按时间倒序记录。每次重大决定都要在这里留痕，包括"决定是什么"、"为什么"、"否决了什么"。
 
+### 2026-04-29 — P2.5 契约硬化：uniqueness 不消费 hint 段落 + seed_relation 三态
+
+**真实端到端 trial 暴露的契约缺陷，scout 仓 #16 关闭前的最后两个 fix。**
+
+**实证背景**：用真实 scout pack `reddit-2026-04-28-1sxch39`（4B class of 2026 benchmark）跑 P1→P2.5 时发现，`P2.5_uniqueness` 在 LLM 沿用 scout 的 `judgment_seed` 时**100% 失败**。裁判 LLM 收到的"原文摘要"是 `pack.body_markdown[:2000]`，而 scout 把 seed 同时写在 frontmatter（机器读）和 body 里的 `## Scout 的预判` 段落（人读）—— 裁判看到 body 里的 seed 文字，判定 LLM 的 judgment 是"复述原文"。
+
+**决定 1：uniqueness gate 改用 source-only body**
+- scout 仓 schema doc（commit `c2cff95`）新增"Markdown body 段落约定"，明确把 `## 来源元信息` / `## Scout 的预判` 标为 **hint**，把 `## 原文正文` / `## 评论区精华` / `## 相关讨论` 标为 **source**
+- advocate 这边新增 `core/source_pack_loader.py:extract_source_sections()`：按 `## ` 标题分类，仅返回 source 段落 + H1 前言 + 未知段落（custom）；hint 段落剔除
+- `_gate_uniqueness` 喂裁判前调用此函数 —— 裁判看不到 seed 自污染
+- **手工 pack 兜底**：没有 ## 标题或没有 source 段落时，返回原 body（不要饿死手工 pack 上的 uniqueness 判断）
+- **不允许的反方案**：用字符位置 strip（脆弱）、修改 scout 的 markdown body（破坏人读价值）、放宽 uniqueness gate 标准（破坏 SOP 红线）
+
+**决定 2：`Judgment.overrode_seed: bool` → `seed_relation: "accept" | "deepen" | "override" | "none"`**
+- Trial 暴露第二个契约缺陷：当 LLM 真的"沿用 seed 主题但换视角切入"（实际 attempt 2 的输出："表面看是排名，实则测试方法严重偏向不思考的模型"），binary `overrode_seed` 没法表达 —— LLM 只能默认填 `False`，但实际产出已偏离 seed
+- 三态语义：
+  - `accept`：完全沿用 seed 结论（`override_reason=null`）
+  - `deepen`：seed 主题对，但视角更精确 / 切入点更锐（`override_reason` 必填）
+  - `override`：完全推翻 seed（`override_reason` 必填）
+  - `none`：没有 seed（手工 pack）
+- **向后兼容**：`_parse_judgment` 自动迁移历史 PhaseRun 的 `overrode_seed: bool` → `seed_relation`（True→override / False→accept）
+- **属于 advocate 内部 state，不进 contract**：scout 仓 #16 关闭时确认 seed_relation 是消费方的事，schema 不需要变
+
+**回归实证**：相同 pack 用 Fix 后版本重跑：
+- P2.5 attempt 1 `seed_relation=accept`（沿用 seed）→ uniqueness **PASSED**（裁判明确说"评论区讨论虽涉及 X，但并未直接表述..."）—— 上次同 pack 同 attempt 因 hint 污染 100% 失败，本次直接通过 ✅
+- P2.5 attempt 2-5 `seed_relation=deepen` + 真实 `override_reason`（LLM 写出"种子关注的是预算分配，而我的判断揭示了测试方法本身存在问题，这是更深层次的结构性问题"）—— 三态有效 ✅
+
+**未变的部分**：
+- 4 项强制 P2.5 QA（uniqueness / brevity / independent_value / anti_relay）红线不动 —— 仅修裁判看到的输入，不放宽通过标准
+- 沿用 seed 也照跑 4 项 QA（防种子本身违反 SOP）—— 这是 scout #16 设计意图
+
+**给"未来 Claude"**：如果 P2.5 prompt 迭代时被新人改回"把整个 body 喂裁判"，这条决策是否决依据 —— 不是把 hint 加回去，是 advocate 这边按 schema 文档清单做 strip 才对。
+
 ### 2026-04-27（V0.2 收官）— 部署目标：腾讯云 Lighthouse → Mac mini；输出 git-native
 
 **推翻 2026-04-26 的"腾讯云 Lighthouse + Docker Compose"决定**。新决策：

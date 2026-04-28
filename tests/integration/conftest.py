@@ -67,7 +67,7 @@ def mock_llm(monkeypatch):
             "deeper_essence": "检索范式从一次性到迭代",
             "full_sentence": "RAG 没有死，它从主角变成了 agent 的工具",
             "seed_judgment": None,
-            "overrode_seed": False,
+            "seed_relation": "none",
             "override_reason": None,
         },
     )

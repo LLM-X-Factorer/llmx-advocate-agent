@@ -106,6 +106,7 @@ def _mk_judgment(text: str, **overrides) -> Judgment:
 
 
 def test_parse_judgment_fills_seed_from_pack():
+    """When seed exists and model didn't declare a relation: default to 'accept'."""
     pack = _mk_pack(with_seed="表面 X 但其实 Y")
     parsed_json = {
         "surface": "X",
@@ -115,7 +116,7 @@ def test_parse_judgment_fills_seed_from_pack():
     }
     judgment = _parse_judgment(parsed_json, "", pack)
     assert judgment.seed_judgment == "表面 X 但其实 Y"
-    assert judgment.overrode_seed is False
+    assert judgment.seed_relation == "accept"
 
 
 def test_parse_judgment_when_model_overrides():
@@ -126,12 +127,30 @@ def test_parse_judgment_when_model_overrides():
         "deeper_essence": "Z",
         "full_sentence": "X 本质上 Z",
         "seed_judgment": "seed text",
-        "overrode_seed": True,
+        "seed_relation": "override",
         "override_reason": "seed missed Z dimension",
     }
     judgment = _parse_judgment(parsed_json, "", pack)
-    assert judgment.overrode_seed is True
+    assert judgment.seed_relation == "override"
     assert judgment.override_reason == "seed missed Z dimension"
+
+
+def test_parse_judgment_when_model_deepens():
+    """deepen — same topic as seed but more precise angle. The 2026-04-29 trial
+    showed that LLM attempt-2 outputs are typically of this kind."""
+    pack = _mk_pack(with_seed="推理预算分配比模型架构更能决定小模型实际表现")
+    parsed_json = {
+        "surface": "4B 小模型基准排名",
+        "transition": "实则",
+        "deeper_essence": "测试方法本身有偏",
+        "full_sentence": "实则测试方法严重偏向不思考的模型，人为制造 Nemotron 的虚假优势",
+        "seed_judgment": "推理预算分配比模型架构更能决定小模型实际表现",
+        "seed_relation": "deepen",
+        "override_reason": "seed only said 'budget > architecture'; we pinpoint the test method bias as the actual mechanism",
+    }
+    judgment = _parse_judgment(parsed_json, "", pack)
+    assert judgment.seed_relation == "deepen"
+    assert judgment.override_reason is not None
 
 
 def test_parse_judgment_when_no_seed():
@@ -144,7 +163,35 @@ def test_parse_judgment_when_no_seed():
     }
     judgment = _parse_judgment(parsed_json, "", pack)
     assert judgment.seed_judgment is None
-    assert judgment.overrode_seed is False
+    assert judgment.seed_relation == "none"
+
+
+def test_parse_judgment_legacy_overrode_seed_field_migrated():
+    """Backwards compat: if a historical PhaseRun output uses the old binary
+    overrode_seed field (pre-2026-04-29 format), parse it without crashing."""
+    pack = _mk_pack(with_seed="legacy seed")
+    parsed_json = {
+        "surface": "X",
+        "transition": "其实",
+        "deeper_essence": "Y",
+        "full_sentence": "X 其实 Y",
+        "seed_judgment": "legacy seed",
+        "overrode_seed": True,
+        "override_reason": "legacy",
+    }
+    judgment = _parse_judgment(parsed_json, "", pack)
+    assert judgment.seed_relation == "override"
+
+    parsed_json2 = {
+        "surface": "X",
+        "transition": "其实",
+        "deeper_essence": "Y",
+        "full_sentence": "X 其实 Y",
+        "seed_judgment": "legacy seed",
+        "overrode_seed": False,
+    }
+    judgment2 = _parse_judgment(parsed_json2, "", pack)
+    assert judgment2.seed_relation == "accept"
 
 
 def test_parse_judgment_raises_on_missing_required_field():
@@ -156,16 +203,16 @@ def test_parse_judgment_raises_on_missing_required_field():
 # === rule gates ===
 
 
-def test_brevity_passes_under_50_chars():
+def test_brevity_passes_under_limit():
     g = _gate_brevity(_mk_judgment("不是因为安全漏洞，而是因为它太好用了——好用到动了巨头的命根子"))
     assert g.passed is True
 
 
-def test_brevity_fails_over_50_chars():
+def test_brevity_fails_over_limit():
     long_text = "这是一个非常非常长的判断" * 10
     g = _gate_brevity(_mk_judgment(long_text))
     assert g.passed is False
-    assert g.evidence["char_count"] > 50
+    assert g.evidence["cjk_char_count"] > g.evidence["limit"]
 
 
 def test_anti_relay_rule_catches_source_backing():
@@ -198,7 +245,7 @@ async def test_run_invokes_llm_and_returns_judgment(monkeypatch):
             "deeper_essence": "检索范式从一次性到迭代",
             "full_sentence": "RAG 没有死，它从主角变成了 agent 的工具",
             "seed_judgment": "表面是 RAG 被 agent 取代，实则是检索范式转移",
-            "overrode_seed": True,
+            "seed_relation": "override",
             "override_reason": "seed talks about paradigm shift abstractly; my version is concrete",
         },
     )
@@ -213,7 +260,7 @@ async def test_run_invokes_llm_and_returns_judgment(monkeypatch):
     output = await P2_5Judgment().run(ctx)
 
     assert output["full_sentence"] == "RAG 没有死，它从主角变成了 agent 的工具"
-    assert output["overrode_seed"] is True
+    assert output["seed_relation"] == "override"
 
 
 # === qa() ===

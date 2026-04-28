@@ -234,18 +234,26 @@ class LayerProfile(BaseModel):
     export_formats: list[ExportFormat]
 
 
+SeedRelation = Literal["accept", "deepen", "override", "none"]
+
+
 class Judgment(BaseModel):
     surface: str
     transition: str
     deeper_essence: str
     full_sentence: str
 
-    # Override semantics — see spec §5.1 / docs/source-pack-schema.md §5.
-    # If the source pack provided a judgment_seed and we kept it: overrode_seed=False, seed_judgment=<that string>.
-    # If we replaced the seed with our own judgment: overrode_seed=True + override_reason explains why.
-    # If no seed existed (manual pack or scout had none): seed_judgment=None, overrode_seed=False.
+    # Seed relation — three-state, replaces the previous binary `overrode_seed`.
+    # See 2026-04-29 decision log entry for the trial that motivated this.
+    #
+    # - "accept"   — seed's conclusion stands; full_sentence may rephrase but agrees
+    # - "deepen"   — seed's topic is right but full_sentence sharpens the angle
+    #                (e.g. trial #4b: seed said "推理预算分配 > 模型架构",
+    #                 deepen said "测试方法严重偏向不思考的模型，人为制造 Nemotron 优势")
+    # - "override" — full_sentence rejects seed's conclusion; reason explains why
+    # - "none"     — no seed was provided (manual pack, or scout had none)
     seed_judgment: str | None = None
-    overrode_seed: bool = False
+    seed_relation: SeedRelation = "none"
     override_reason: str | None = None
 
 
