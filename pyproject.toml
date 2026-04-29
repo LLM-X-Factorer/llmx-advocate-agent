@@ -1,6 +1,6 @@
 [project]
 name = "llmx-advocate-agent"
-version = "0.1.0"
+version = "0.2.0"
 description = "AI Engineering Advocate content production agent — turns research/PDFs/topics into Bilibili video scripts (Video JSON) with enforced quality gates."
 readme = "README.md"
 license = { text = "MIT" }

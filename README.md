@@ -176,20 +176,27 @@ CORS origins 从 `LLMX_CORS_ORIGINS` 配置（默认 `localhost:5173`）。
 
 - [项目记忆 / 红线 / 决策日志](CLAUDE.md)
 - [规格说明书](docs/specification.md) — agent 形式化定义、状态机、数据模型、9 phase 详解、所有质检关卡
-- [Source Pack Schema v1.0](docs/source-pack-schema.md) — 与 `llmx-scout-agent` 之间的接口契约
-- [架构方案](docs/architecture-options.md) — 已锁定 B+
+- [Source Pack Schema v1.0](docs/source-pack-schema.md) — 与 `llmx-scout-agent` 之间的**输入**契约（双仓字节级同步）
+- [Output Archive Schema](docs/output-archive-schema.md) — 与 `llmx-advocate-outputs` 之间的**输出**契约（双仓字节级同步）
+- [架构方案](docs/architecture-options.md) — 已锁定 B+（部署目标已从腾讯云 Lighthouse 改为 Mac mini，详见 CLAUDE.md 决策日志 2026-04-27）
 - [源 skill](docs/source-skill/) — 原 chinese-content-workflow skill 文档（zip + 解压副本）
 - [scout-agent 启动 prompt](docs/future-projects/scout-agent-bootstrap.md) — 上游项目立项时直接引用
+
+**关联仓库**：
+- [`llmx-scout-agent`](https://github.com/LLM-X-Factorer/llmx-scout-agent) — 上游素材采集（独立项目）
+- [`llmx-scout-packs`](https://github.com/LLM-X-Factorer/llmx-scout-packs) — 上游素材库（私有，scout 自动 push）
+- [`llmx-advocate-outputs`](https://github.com/LLM-X-Factorer/llmx-advocate-outputs) — 下游成品归档（私有，advocate cron 自动 push）
 
 ## 开发约束
 
 - ✅ 修改 phase / gate 标准，必须同步更新 `docs/specification.md`
 - ✅ 加 fixture / golden test 永远先于改 phase 实现
-- ✅ 裁判 LLM 固定（V0.1 用 OpenRouter / `deepseek/deepseek-v4-flash`；拿到 Anthropic key 后切 `claude-opus-4-7`），任何切换必须同步决策日志——评测基线不能漂移
+- ✅ 裁判 LLM 固定（当前 OpenRouter / `deepseek/deepseek-v4-flash`；拿到 Anthropic key 后切 `claude-opus-4-7`），任何切换必须同步决策日志——评测基线不能漂移
 - ❌ 不允许 `--force` 跳过质检
 - ❌ 不要在没读 `docs/source-skill/` 的情况下改 phase 行为
+- 📝 **真问题进 GitHub Issue tracker，不进 CLAUDE.md** — 当前 7 个 open issue 都是从生产 / trial 中长出来的，不是凭空畅想
 
-## 实施进度
+## 实施进度（v0.2.0 — 2026-04-29）
 
 | 模块 | 状态 |
 |------|------|
@@ -197,13 +204,13 @@ CORS origins 从 `LLMX_CORS_ORIGINS` 配置（默认 `localhost:5173`）。
 | 项目骨架（pyproject / docker / CI / alembic） | ✅ |
 | 数据模型 + 状态机引擎（含重试/回退/分叉） | ✅ |
 | 持久化层（Postgres + MinIO，aiosqlite 测试） | ✅ |
-| LLM provider 抽象（Anthropic + OpenRouter） | ✅ — OpenRouter 真验证通过（DeepSeek-chat / R1 / Ling 1T） |
-| 质检 gate 框架 + 裁判 LLM | ✅ — V0.1 裁判固定 `inclusionai/ling-2.6-1t:free` |
+| LLM provider 抽象（Anthropic + OpenRouter） | ✅ — OpenRouter 真验证通过（DeepSeek-chat / R1 / V4-Pro / V4-Flash / Ling-1T） |
+| 质检 gate 框架 + 裁判 LLM | ✅ — 当前固定 `deepseek/deepseek-v4-flash` |
 | FastAPI HTTP API + Click CLI（rich 输出） | ✅ |
 | **P1** Source Pack 加载 + 校验 | ✅ |
 | **P1.5** Topic Angle Discovery（LLM） | ✅ |
 | **P2** Content Layer & Characteristic（LLM） | ✅ |
-| **P2.5** Core Judgment（4 项强制 QA + 可选第 5 项） | ✅ |
+| **P2.5** Core Judgment（4 项强制 QA + `seed_relation` 三态 + uniqueness 仅消费 source 段落）| ✅ |
 | **P2.6** Cognitive Deepening（4 项 Depth Test） | ✅ |
 | **P3** Core Information Extraction（5 维素材丰富度门） | ✅ |
 | **P4** Video JSON Generation（共同 6 红线 + judgment_first 3 项 + suspense_first 5 项 + 结构校验） | ✅ |
@@ -212,12 +219,15 @@ CORS origins 从 `LLMX_CORS_ORIGINS` 配置（默认 `localhost:5173`）。
 | Celery worker 接入（异步任务推进） | ✅（`run_async=true` opt-in，inline 仍是默认）|
 | 评测脚手架（task fork / eval compare / eval batch） | ✅ |
 | 人工干预（task qa rerun / task edit / task export） | ✅ |
-| Web 只读详情页（V0.2） | 🚧 |
+| **Web 只读详情页（列表 / 新建 / 详情 / 导出预览）** | ✅ — Vite + React 19 + Tailwind 4 + OpenAPI 类型生成 |
+| **输出归档 git-native（push 到 `llmx-advocate-outputs`）** | ✅ — `core/export.py` + engine hook + cron 脚本 + launchd plist 模板 |
+| **真实端到端 trial × 2** | ✅ — 2026-04-27 内部 + 2026-04-29 真实 scout pack 都跑到 COMPLETED |
+| **Mac mini 部署 + cron 自动化** | ✅ 跑中 — outputs 仓 8 commits / 几十个 task 归档 |
 | P0 选题预诊断 / P7 商业化对齐 | 🚧 V0.3 之后 |
 
-**🎉 V0.1 完整闭环：真实 scout pack（reddit DeepSeek-v4 inference）经 9 phase 全栈跑通到 COMPLETED**，3.5 分钟产出 22 scenes / 8.2 分钟 B 站视频 JSON + 3 个标题选项 + 简介 + 章节时间戳。golden 输出存档在 `tests/golden/scout-deepseek-v4-pack-video.json`。
+**🎉 V0.2 完整闭环**：真实 scout pack（hacker-news Utilyze GPU monitoring）经 9 phase 全栈跑通到 COMPLETED + 人工 review 评定"看了想录"。归档在 `llmx-advocate-outputs:2026-04-28/01KQAGYPVFCPQEE4HBPVTV5RHR/`，**18 scenes / 6m22s 视频 + 2 标题候选 + 简介 + 章节时间戳**。
 
-测试：193/193 通过（unit 168 + integration 25）。
+测试：218/218 通过（unit 189 + integration 29）。Lint 干净（ruff）。
 
 ## 路线图
 
@@ -230,9 +240,18 @@ CORS origins 从 `LLMX_CORS_ORIGINS` 配置（默认 `localhost:5173`）。
 - [x] V0.1 人工干预（task qa rerun / task edit / task export）
 - [x] V0.1 真实端到端 smoke（scout pack → 9 phase → COMPLETED，3.5 min，golden 输出已存档）
 - [x] scout-agent v0.1 schema 同步（接受所有 scout-real 产出）
-- [ ] V0.2 只读 Web 详情页
+- [x] **V0.2 Web 只读详情页（Vite + React + Tailwind 4 + OpenAPI 生成类型）**
+- [x] **V0.2 输出归档 git-native（`core/export.py` + engine hook + cron 脚本 + `LLMX_OUTPUTS_DIR` + launchd plist 模板）**
+- [x] **V0.2 部署目标改为 Mac mini docker compose（推翻 V0.1 的腾讯云 Lighthouse 决议，详见 CLAUDE.md 决策日志 2026-04-27）**
+- [x] **V0.2 两次契约 fix：P2.5 uniqueness 仅消费 source 段落 + `seed_relation` 三态枚举（dc5109e）**
+- [x] **V0.2 Mac mini 部署 + 自动 cron 跑通（outputs 仓 8 commits / 几十个 task 归档）**
+- [x] **V0.2 真实 scout pack 端到端 trial（hacker-news Utilyze）→ COMPLETED + 人工 review 评定"看了想录"（2026-04-29）**
+- [ ] V0.3 修 [#9](https://github.com/LLM-X-Factorer/llmx-advocate-agent/issues/9)（tier 漂移污染 opening_style）+ [#5](https://github.com/LLM-X-Factorer/llmx-advocate-agent/issues/5)（Celery 孤儿任务）
 - [ ] V0.3 P0 选题预诊断 / P7 商业化对齐
+- [ ] V0.3 持续观察 Mac mini cron 1-2 周，依真实 outputs 数据决定下一个该修的 issue
 - [ ] V1.0 对外开放
+
+> **Issue tracker 是真活的**：当前 7 个 open issue（[#1](https://github.com/LLM-X-Factorer/llmx-advocate-agent/issues/1) / [#5-#10](https://github.com/LLM-X-Factorer/llmx-advocate-agent/issues)），全部从生产 / trial 中长出来，不是装饰。改 phase 行为前先看 issue 列表是否相关。
 
 ## License
 

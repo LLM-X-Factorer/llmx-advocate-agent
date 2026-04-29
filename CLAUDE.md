@@ -79,45 +79,48 @@
 
 ## 3. 当前阶段
 
-**阶段：phase 主线推进中（P1 / P1.5 / P2 已实现，P2.5 下一步）**
+**阶段：V0.2 全栈完成（已打 tag `v0.2.0`），Mac mini 自动化 cron 在跑，真实归档已开始积累**
 
-- ✅ 完成：完整阅读 `docs/source-skill/` + `~/.claude/skills/dbs-*` 套件
-- ✅ 完成：`docs/specification.md` v0.2（dbs-* 整合 + opening_style 分叉 + scout 解耦）
-- ✅ 完成：`docs/architecture-options.md` v0.2（锁定 B+）
-- ✅ 完成：项目骨架（pyproject / docker-compose / CI / alembic / prompts 目录）
-- ✅ 完成：数据模型 + 状态机引擎（含重试/回退/分叉，单元 + 集成测试覆盖）
-- ✅ 完成：持久化层（Postgres + MinIO，aiosqlite 测试不依赖 docker）
-- ✅ 完成：LLM provider 抽象（Anthropic + OpenRouter），真验证 DeepSeek-chat / R1 / Ling 1T
-- ✅ 完成：质检 gate 框架 + 裁判 LLM 模板（裁判固定 Ling 1T）
-- ✅ 完成：FastAPI API + Click CLI（rich 输出，端到端 smoke 通过）
-- ✅ 完成：**P1** Source Pack 加载 + 校验（schema + body 长度 + section header 三 gate）
-- ✅ 完成：**P1.5** Topic Angle Discovery（LLM 生成 + community signal + 反产品发布通报 judge）
-- ✅ 完成：**P2** Content Layer Profile（LLM 分类 + 4 项规则 gate：tier-duration / tier-scene / formats / scores）
-- ✅ 完成：**P2.5** ⭐ Core Judgment（4 项强制 QA + 可选第 5 项 cognition_gap）
-- ✅ 完成：**P2.6** Cognitive Deepening（三轮追问 + 4 项 Depth Test + theme 字段）
-- ✅ 完成：**P3** Core Information Extraction（5 维素材丰富度 + findings 数量约束 + 选题受众面）
-- ✅ 完成：**P4** Video JSON Generation（共同 6 红线 + judgment_first 3 项 + 结构校验；suspense_first 5 项 judge gate 待 V0.2）
-- ✅ 完成：**P5** JSON Self-Check（6 条 TTS-Visual 同步 + 5 项 anti-AI 味 + 结构完整性 + duration 公式 sanity）
-- ✅ 完成：**P6** Auxiliary Output（2-3 标题 / emoji 简介 / 章节时间戳）
-- ✅ 完成：**P4 suspense_first** 5 项 judge gate（spec §5.3.2）
-- ✅ 完成：**Celery worker** 接入（opt-in via `run_async=true`，inline 仍是默认）
-- ✅ 完成：**评测脚手架** —— `eval fork` / `eval compare` / `eval batch`，A/B 框架就绪
-- ✅ 完成：**人工干预** —— `task qa <phase>` 重跑质检 / `task edit <phase>` 编辑 PhaseRun + 自动跑 QA / `task export` 导出 video.json + publishing.json + summary.md
-- ✅ 完成：**真实端到端 smoke** —— scout pack（reddit DeepSeek-v4 inference）→ 9 phase → COMPLETED，3.5 min，golden 输出在 `tests/golden/scout-deepseek-v4-pack-video.json`
+### 已完成（按时间倒序，截至 2026-04-29）
 
-**🎉 V0.1 主线 100% 闭合：9 phase + Celery + 评测脚手架 + 人工干预 + 真实 smoke + scout schema 对接**
+- ✅ **真实端到端 trial × 2**：
+  - 2026-04-27 内部 smoke（reddit DeepSeek-v4）→ COMPLETED，golden 输出在 `tests/golden/scout-deepseek-v4-pack-video.json`
+  - 2026-04-29 真实 scout pack（hacker-news Utilyze）→ COMPLETED 后人工 review 评定"看了想录"，归档在 `llmx-advocate-outputs:2026-04-28/01KQAGYPVFCPQEE4HBPVTV5RHR`
+- ✅ **`llmx-advocate-outputs` 私有仓真实运转**：8 commits / 几十个 task 归档（Mac mini cron 在自动跑）
+- ✅ **两次契约 fix（commit `dc5109e`）**：
+  - P2.5 uniqueness gate 改用 `extract_source_sections()` 仅消费 source 段落（hint 段落不喂裁判）
+  - `Judgment.overrode_seed: bool` → `seed_relation: "accept" | "deepen" | "override" | "none"`
+- ✅ **V0.2 全部交付**：
+  - Web 只读详情页（Vite + React + Tailwind 4 + OpenAPI 生成类型）
+  - 输出归档 git-native（`core/export.py` + engine hook + cron 脚本 + launchd plist 模板）
+  - W2 全套验证：`persist_to_disk` 在真实 9-phase task 上端到端跑通
+- ✅ **V0.1 全部 9 phase 业务实现 + 测试覆盖完整**
 
-**测试覆盖**：193 项（unit 168 + integration 25），全过。Lint 干净。
+### 当前测试 / lint 状态
 
-**已完成**（2026-04-27）：
-- ✅ **V0.2 Web 只读详情页**：列表 / 新建（粘贴+拖拽 .md）/ 详情（phase 时间线 + QA gates + 输出 JSON）/ 导出预览（22 scenes 渲染）。Vite + React + Tailwind 4 + 自写 shadcn-style 组件 + OpenAPI 类型生成
-- ✅ **输出归档 git-native**：`core/export.py` + 引擎收尾 hook + `LLMX_OUTPUTS_DIR` + `docker-compose` outputs 卷 + 双 cron 脚本 + launchd plist 模板 + 输出仓 schema 文档
+- **测试**：218 项（unit 189 + integration 29），全过
+- **Lint**：干净（ruff）
+- **裁判 LLM**：固定 `deepseek/deepseek-v4-flash`（V0.1 决策，等 Anthropic key）
 
-**下一步候选**：
-1. **W3 Mac mini 部署**：scout 跑通后启动 advocate 部署 — `docker compose up -d` + 建私有仓 `llmx-advocate-outputs` + 跑 `scripts/launchd/install.sh` + 手工 smoke 1-2 个真实 scout pack
-2. **W4 启用 cron 全自动**：观察 1 周输出仓积累节奏 + 失败率
-3. **裁判 LLM 升级**：拿到 Anthropic key 后切 Claude Opus 4.7
+### 在 GitHub Issue Tracker 跟踪的 7 个 open issue（真问题，从生产 / trial 中长出来）
+
+| # | 问题 | 优先级 |
+|---|------|--------|
+| #1 | P2.5_anti_relay_judge 对纯技术 pack 过严 | 🔴 高 |
+| #5 | Celery worker 重启后孤儿任务 | 🔴 高（部署痛） |
+| #6 | P4 suspense_first credibility_signal 对剧情类 100% fail | 🔴 高 |
+| #7 | P4 scene_count/duration 对短 pack 失败 | 🟡 中 |
+| #8 | P6 title 风格不匹配 tier | 🟢 低 |
+| **#9** | **P2.5 失败导致 P2 tier 漂移 → P4 风格选错（spec 设计冲突）** | 🔴 高（2026-04-29 新发现）|
+| **#10** | P2.5 uniqueness 在原文已直接说判断时必败（SOP 紧张） | 🟡 中（2026-04-29 新发现）|
+
+### 下一步候选
+
+1. **修 #9（高优先 / 设计层）**：opening_style=auto 时锁定第一次 P2 PASSED 的 tier，不跟随 P2.5 fallback 引发的 tier 漂移
+2. **修 #5（高优先 / 部署痛）**：watchdog cron 扫 `running` 超 30min 的 task 重入队
+3. **持续观察 Mac mini cron**：积累 1-2 周真实归档，看 outputs 仓的数据分布告诉我们下一个该修的 issue 是哪个
 4. **V0.3 dbs-\* 商业化整合**：P0 选题预诊断 / P7 商业化对齐（spec §6.2 占位）
+5. **裁判 LLM 升级**：拿到 Anthropic key 后切 Claude Opus 4.7
 5. **A/B 评测真跑**：用 `eval batch` 跑 model × opening_style 笛卡尔积
 
 ---
